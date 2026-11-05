@@ -34,10 +34,17 @@ describe("cli", () => {
     assert.match(result.stdout, /ask ──▶ 3 files ──▶ tests pass ──▶ ship/);
     assert.match(result.stderr, /dry-run/);
     assert.match(result.stderr, /SVG: /);
+    assert.match(result.stderr, /PNG: /);
+    assert.match(result.stdout, /```mermaid/);
+    assert.equal(/github\.com\/.+\/raw\//.test(result.stdout), false);
     const svgPath = /SVG: (.+)/.exec(result.stderr)?.[1]?.trim();
+    const pngPath = /PNG: (.+)/.exec(result.stderr)?.[1]?.trim();
     assert.ok(svgPath);
+    assert.ok(pngPath);
     assert.equal(svgPath.startsWith(cwd), false);
+    assert.equal(pngPath.startsWith(cwd), false);
     assert.match(fs.readFileSync(svgPath, "utf8"), /<svg/);
+    assert.equal(fs.readFileSync(pngPath).subarray(0, 8).toString("hex"), "89504e470d0a1a0a");
     assert.equal(fs.readdirSync(cwd).length, 0);
     for (const canary of SECRET_CANARIES) {
       assert.equal(result.stdout.includes(canary), false, canary);

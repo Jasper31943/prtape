@@ -43,5 +43,8 @@
     "tsx": "^4.19.4",
     "typescript": "^5.8.3"
   },
-  "sideEffects": false
+  "sideEffects": false,
+  "dependencies": {
+    "@resvg/resvg-js": "^2.6.2"
+  }
 }

@@ -29,4 +29,4 @@ flowchart LR
 
 </details>
 
-_Redacted locally by AgentTape 0.1.0. The raw session was not posted. GitHub comments strip inline SVG; the SVG timeline is on the machine that ran the CLI._
+_Redacted locally by AgentTape 0.1.0. The raw session was not posted. This is the text timeline (ASCII + mermaid). GitHub strips inline SVG._

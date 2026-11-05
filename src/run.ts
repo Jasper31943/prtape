@@ -11,13 +11,18 @@ import {
   type DiscoverOptions,
   type SourceChoice,
 } from "./discover.js";
+import { glanceRaster } from "./glance.js";
 import { GhError, postComment, type CommandRunner } from "./gh.js";
+import { hostTimelinePng, type HostResult } from "./orphan.js";
+import { renderPng } from "./png.js";
 import { redactSession, type RedactOptions } from "./redact.js";
 import { sessionIsEmpty } from "./summary.js";
 import { renderComment, terminalSummary } from "./timeline/md.js";
 import { renderSvg } from "./timeline/svg.js";
 import type { SessionSummary, SourceKind } from "./types.js";
 import { VERSION } from "./version.js";
+
+export type ImageHost = (input: { cwd: string; png: Buffer }) => Promise<HostResult>;
 
 export interface RunOptions {
   cwd: string;
@@ -29,6 +34,8 @@ export interface RunOptions {
   tmpDir?: string;
   runner?: CommandRunner;
   recentFiles?: string[];
+  /** Test hook. Production uses `hostTimelinePng`. */
+  hostImage?: ImageHost;
 }
 
 export interface RunResult {
@@ -36,7 +43,10 @@ export interface RunResult {
   comment: string;
   svg: string;
   svgPath: string;
+  pngPath?: string;
   posted: boolean;
+  imageHosted: boolean;
+  imageUrl?: string;
   note: string;
   sessionNote?: string;
   prNumber?: number;
@@ -44,7 +54,10 @@ export interface RunResult {
   origin: string;
 }
 
-export function toPublicJson(summary: SessionSummary): unknown {
+export function toPublicJson(
+  summary: SessionSummary,
+  image: { imageHosted: boolean; imageUrl?: string } = { imageHosted: false },
+): unknown {
   return {
     version: VERSION,
     source: summary.source,
@@ -59,6 +72,8 @@ export function toPublicJson(summary: SessionSummary): unknown {
     tests: summary.tests,
     files: summary.files,
     steps: summary.steps,
+    imageHosted: image.imageHosted,
+    imageUrl: image.imageUrl ?? null,
   };
 }
 
@@ -77,50 +92,107 @@ export async function runPr(options: RunOptions): Promise<RunResult> {
 
   const redactOptions: RedactOptions = { emails: options.redactEmails };
   const redacted = redactSession(summary, redactOptions);
-  const comment = renderComment(redacted, redactOptions);
   const svg = renderSvg(redacted, redactOptions);
-  const svgPath = writeTimelineSvg(svg, cwd, redacted.sessionId, options.tmpDir ?? os.tmpdir());
+  const tmpDir = options.tmpDir ?? os.tmpdir();
+  const svgPath = writeTimelineFile(svg, cwd, redacted.sessionId, tmpDir, "svg");
+  const raster = rasterize(svg);
+  const pngPath = raster.png
+    ? writeTimelineFile(raster.png, cwd, redacted.sessionId, tmpDir, "png")
+    : undefined;
 
+  if (options.dryRun) {
+    return {
+      summary: redacted,
+      comment: renderComment(redacted, redactOptions),
+      svg,
+      svgPath,
+      pngPath,
+      posted: false,
+      imageHosted: false,
+      sessionNote: found.note,
+      origin: found.path,
+      note: [
+        "AgentTape dry-run. Nothing was posted.",
+        "The PNG was not uploaded. A real run pushes it to orphan branch agenttape-media and links github.com/.../raw/<sha>/timeline.png.",
+        "If gh is missing, unauthenticated, or that push is denied, the text timeline below is the comment.",
+      ].join("\n"),
+    };
+  }
+
+  const hosted = await resolveHost(options, cwd, raster);
+  const comment = hosted.ok
+    ? renderComment(redacted, redactOptions, { url: hosted.url, isPrivate: hosted.isPrivate })
+    : renderComment(redacted, redactOptions);
   const base = {
     summary: redacted,
     comment,
     svg,
     svgPath,
+    pngPath,
     sessionNote: found.note,
     origin: found.path,
+    imageHosted: hosted.ok,
+    imageUrl: hosted.ok ? hosted.url : undefined,
   };
 
-  if (options.dryRun) {
-    return {
-      ...base,
-      posted: false,
-      note: "AgentTape dry-run. Nothing was posted.",
-    };
+  if (!hosted.ok && blocksComment(hosted.glance)) {
+    return { ...base, posted: false, note: `${hosted.glance}\nNothing was posted.` };
   }
 
   try {
     const pr = await postComment(cwd, comment, options.runner);
+    if (!hosted.ok) {
+      return {
+        ...base,
+        posted: true,
+        prNumber: pr.number,
+        prUrl: pr.url || undefined,
+        note: `${hosted.glance}\nText comment posted on PR #${pr.number}. The PNG is not in the comment.`,
+      };
+    }
     return {
       ...base,
       posted: true,
-      note: `Commented on PR #${pr.number}.`,
       prNumber: pr.number,
       prUrl: pr.url || undefined,
+      note: `Commented on PR #${pr.number} with the hosted PNG.\n${hosted.url}`,
     };
   } catch (error) {
     const reason = error instanceof GhError ? error.message : "Could not post the comment.";
-    return {
-      ...base,
-      posted: false,
-      note: `${reason} Nothing was posted.`,
-    };
+    const imageLine = hosted.ok
+      ? `The PNG is on orphan branch agenttape-media at ${hosted.url}, but the comment was not posted.`
+      : hosted.glance;
+    return { ...base, posted: false, note: `${imageLine}\n${reason} Nothing was posted.` };
   }
+}
+
+function rasterize(svg: string): { png?: Buffer; glance?: string } {
+  try {
+    return { png: renderPng(svg) };
+  } catch {
+    return { glance: glanceRaster() };
+  }
+}
+
+async function resolveHost(
+  options: RunOptions,
+  cwd: string,
+  raster: { png?: Buffer; glance?: string },
+): Promise<HostResult> {
+  if (!raster.png) return { ok: false, glance: raster.glance ?? glanceRaster() };
+  if (options.hostImage) return options.hostImage({ cwd, png: raster.png });
+  return hostTimelinePng({ cwd, png: raster.png, runner: options.runner, tmpRoot: options.tmpDir });
+}
+
+function blocksComment(glance: string): boolean {
+  return /gh is not installed|gh is not authenticated/.test(glance);
 }
 
 export function formatPosted(result: RunResult): string {
   const lines = [result.note];
   if (result.prUrl) lines.push(result.prUrl);
   lines.push(`SVG: ${result.svgPath}`);
+  if (result.pngPath) lines.push(`PNG: ${result.pngPath}`);
   lines.push("");
   lines.push(terminalSummary(result.summary));
   return `${lines.join("\n")}\n`;
@@ -161,12 +233,18 @@ function readSession(file: string): string {
   return fs.readFileSync(file, "utf8");
 }
 
-export function writeTimelineSvg(svg: string, cwd: string, sessionId: string, tmpDir: string): string {
+export function writeTimelineFile(
+  contents: string | Buffer,
+  cwd: string,
+  sessionId: string,
+  tmpDir: string,
+  extension: "svg" | "png",
+): string {
   const safe = sessionId.replace(/[^A-Za-z0-9_-]+/g, "").slice(0, 48) || "session";
-  const file = path.join(tmpDir, `agenttape-${safe}.svg`);
+  const file = path.join(tmpDir, `agenttape-${safe}.${extension}`);
   assertNotInsideProject(file, cwd);
   fs.mkdirSync(path.dirname(file), { recursive: true });
-  fs.writeFileSync(file, svg, { encoding: "utf8", mode: 0o600 });
+  fs.writeFileSync(file, contents, { mode: 0o600 });
   return file;
 }
 

@@ -13,14 +13,24 @@ import {
 } from "./format.js";
 import { rollupTests } from "../summary.js";
 
+export interface CommentImage {
+  url: string;
+  isPrivate: boolean;
+}
+
 /**
  * Pull-request comment body.
  *
- * GitHub's markdown sanitizer removes inline `<svg>` and data-URI images,
- * so the comment is a one-line decision, an ASCII flow, a short table, and
- * a mermaid diagram. The SVG from `renderSvg` is written to a temp file.
+ * GitHub strips inline SVG. When a PNG was pushed to the orphan branch, the
+ * comment leads with that `github.com/.../raw/<sha>/...` image and still keeps
+ * the ASCII and mermaid timeline, because a private repo does not show the
+ * image to everyone. Without a hosted PNG, the comment is the text timeline only.
  */
-export function renderComment(input: SessionSummary, options: RedactOptions = {}): string {
+export function renderComment(
+  input: SessionSummary,
+  options: RedactOptions = {},
+  image?: CommentImage,
+): string {
   const summary = redactSession(input, options);
   const decision = decisionLine(summary, 200);
   const when = formatWhen(summary.startedAt);
@@ -42,6 +52,7 @@ export function renderComment(input: SessionSummary, options: RedactOptions = {}
     "",
     `**${escapeMdCell(decision)}**`,
     "",
+    ...(image ? imageBlock(image) : []),
     "```text",
     asciiFlow(summary),
     "```",
@@ -63,10 +74,26 @@ export function renderComment(input: SessionSummary, options: RedactOptions = {}
     "",
     "</details>",
     "",
-    `_Redacted locally by AgentTape ${VERSION}. The raw session was not posted. GitHub comments strip inline SVG; the SVG timeline is on the machine that ran the CLI._`,
+    image
+      ? `_Redacted locally by AgentTape ${VERSION}. The raw session was not posted._`
+      : `_Redacted locally by AgentTape ${VERSION}. The raw session was not posted. This is the text timeline (ASCII + mermaid). GitHub strips inline SVG._`,
     "",
   ];
   return lines.join("\n");
+}
+
+function imageBlock(image: CommentImage): string[] {
+  return [`![AgentTape timeline](${image.url})`, "", visibilityNote(image.isPrivate), ""];
+}
+
+function visibilityNote(isPrivate: boolean): string {
+  const which = isPrivate ? "This repo is private." : "This repo is public.";
+  return [
+    which,
+    "On a public repo, anonymous viewers see the PNG at `github.com/.../raw/<sha>/...`.",
+    "On a private repo, logged-out users, email notifications, and some mobile clients may show a broken image.",
+    "Collaborators who can open the repo usually see it.",
+  ].join(" ");
 }
 
 function testsCell(summary: SessionSummary): string {

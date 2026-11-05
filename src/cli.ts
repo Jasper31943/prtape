@@ -41,9 +41,12 @@ Examples:
   agenttape pr --json --dry-run
   agenttape pr --session fixtures/claude-session.jsonl --dry-run
 
-The comment is markdown (ASCII flow, a short table, mermaid). GitHub strips
-inline SVG, so the SVG is written under the system temp directory and the
-path is printed. AgentTape does not write into the repository.
+A real run pushes timeline.png to the orphan branch agenttape-media and
+links github.com/.../raw/<sha>/timeline.png. If gh is missing, not
+authenticated, or that push is denied, AgentTape prints what failed and how
+to fix it, then uses the text timeline (ASCII + mermaid). It does not claim
+an image was posted. SVG and PNG files are written under the system temp
+directory, never into the repository.
 `;
 
 async function main(argv: string[]): Promise<number> {
@@ -94,7 +97,12 @@ function writeResult(
   result: Awaited<ReturnType<typeof runPr>>,
   json: boolean,
 ): void {
-  const diagnostics = [result.sessionNote, result.posted ? undefined : result.note, `SVG: ${result.svgPath}`]
+  const diagnostics = [
+    result.sessionNote,
+    result.posted ? undefined : result.note,
+    `SVG: ${result.svgPath}`,
+    result.pngPath ? `PNG: ${result.pngPath}` : undefined,
+  ]
     .filter((line): line is string => Boolean(line))
     .join("\n");
 
@@ -104,7 +112,9 @@ function writeResult(
       process.stderr.write(`${result.note}\n`);
       if (result.prUrl) process.stderr.write(`${result.prUrl}\n`);
     }
-    process.stdout.write(`${JSON.stringify(toPublicJson(result.summary), null, 2)}\n`);
+    process.stdout.write(
+      `${JSON.stringify(toPublicJson(result.summary, { imageHosted: result.imageHosted, imageUrl: result.imageUrl }), null, 2)}\n`,
+    );
     return;
   }
 

@@ -45,6 +45,9 @@ describe("gh", () => {
       redactEmails: false,
       tmpDir,
       runner,
+      hostImage: () => {
+        throw new Error("dry-run must not host the PNG");
+      },
     });
     assert.equal(dry.posted, false);
     assert.equal(calls.length, 0);
@@ -56,6 +59,7 @@ describe("gh", () => {
     assert.equal((fs.statSync(dry.svgPath).mode & 0o777) === 0o600, true);
 
     calls.length = 0;
+    const imageUrl = "https://github.com/acme/demo/raw/abc123def/timeline.png";
     const posted = await runPr({
       cwd,
       sessionPath: session,
@@ -64,13 +68,19 @@ describe("gh", () => {
       redactEmails: false,
       tmpDir,
       runner,
+      hostImage: async () => ({ ok: true, url: imageUrl, sha: "abc123def", isPrivate: false }),
     });
     assert.equal(posted.posted, true);
+    assert.equal(posted.imageHosted, true);
     assert.equal(posted.prNumber, 12);
     const commentCall = calls.find((call) => call.args[1] === "comment");
     assert.ok(commentCall);
     assert.equal(commentCall?.args.includes("--body-file"), true);
     assert.match(commentCall?.input ?? "", /### AgentTape/);
+    assert.match(commentCall?.input ?? "", /github\.com\/acme\/demo\/raw\/abc123def\/timeline\.png/);
+    assert.match(commentCall?.input ?? "", /```mermaid/);
+    assert.match(commentCall?.input ?? "", /private repo/i);
+    assert.match(posted.note, /hosted PNG/);
     for (const canary of SECRET_CANARIES) {
       assert.equal(commentCall?.input?.includes(canary), false, canary);
       assert.equal(posted.comment.includes(canary), false);
@@ -100,11 +110,51 @@ describe("gh", () => {
       redactEmails: false,
       tmpDir,
       runner,
+      hostImage: async () => ({
+        ok: false,
+        glance: [
+          "Image not posted: push to orphan branch agenttape-media was denied.",
+          "Fix: give this account write access to the repo, then rerun `agenttape pr`.",
+          "Fell back to the text timeline (ASCII + mermaid).",
+        ].join("\n"),
+      }),
     });
     assert.equal(kept.posted, false);
+    assert.equal(kept.imageHosted, false);
+    assert.match(kept.note, /was denied/);
+    assert.match(kept.note, /write access/);
     assert.match(kept.note, /No pull request/);
     assert.match(kept.note, /Nothing was posted/);
-    assert.match(kept.comment, /### AgentTape/);
+    assert.match(kept.comment, /```mermaid/);
+    assert.equal(kept.comment.includes("github.com/"), false);
     assert.equal(fs.readdirSync(cwd).some((name) => name === ".agenttape" || name.endsWith(".jsonl")), false);
+  });
+
+  it("prints a one-glance fix and does not post when gh is missing", async () => {
+    let comments = 0;
+    const runner: CommandRunner = async (_command, args) => {
+      if (args[0] === "pr" && args[1] === "comment") comments += 1;
+      return result({ code: 127, stderr: "gh not found" });
+    };
+    const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "agenttape-nogh-"));
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "agenttape-svg-"));
+    const out = await runPr({
+      cwd,
+      sessionPath: path.join(root, "fixtures", "claude-session.jsonl"),
+      source: "auto",
+      dryRun: false,
+      redactEmails: false,
+      tmpDir,
+      runner,
+    });
+    assert.equal(out.posted, false);
+    assert.equal(out.imageHosted, false);
+    assert.equal(comments, 0);
+    assert.match(out.note, /gh is not installed/);
+    assert.match(out.note, /gh auth login/);
+    assert.match(out.note, /ASCII \+ mermaid/);
+    assert.match(out.note, /Nothing was posted/);
+    assert.match(out.comment, /```mermaid/);
+    assert.equal(out.comment.includes("/raw/"), false);
   });
 });

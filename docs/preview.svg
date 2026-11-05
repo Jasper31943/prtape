@@ -2,28 +2,48 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="760" height="360" viewBox="0 0 760 360" role="img">
   <title>AgentTape timeline · Claude Code</title>
   <desc>Ship the redacted timeline. Left [REDACTED_API_KEY] off the PR.</desc>
-  <rect width="760" height="360" rx="18" fill="#f3efe6"/>
-  <rect x="16" y="16" width="728" height="328" rx="12" fill="#fbf8f2" stroke="#e3dcd0"/>
-  <text x="40" y="52" fill="#6f675e" font-family="ui-sans-serif, system-ui, sans-serif" font-size="12" letter-spacing="1.8">AGENTTAPE</text>
-  <text x="720" y="52" fill="#1c1714" font-family="ui-sans-serif, system-ui, sans-serif" font-size="13" text-anchor="end">Claude Code</text>
-  <text x="40" y="76" fill="#6f675e" font-family="ui-sans-serif, system-ui, sans-serif" font-size="12">feature/redact-timeline   ·   2026-11-01 15:04 UTC</text>
-  <line x1="40" y1="94" x2="720" y2="94" stroke="#e3dcd0"/>
-  <line x1="48" y1="128" x2="48" y2="272" stroke="#d9d0c3" stroke-width="2"/>
-  <circle cx="48" cy="128" r="6.5" fill="#fbf8f2"/>
-  <circle cx="48" cy="128" r="4.5" fill="#3d5c4a"/>
-  <text x="72" y="132" fill="#6f675e" font-family="ui-sans-serif, system-ui, sans-serif" font-size="11" letter-spacing="1.2">ASK</text>
-  <text x="140" y="132" fill="#1c1714" font-family="ui-sans-serif, system-ui, sans-serif" font-size="15">Strip keys and internal hosts before posting.</text>
-  <circle cx="48" cy="176" r="6.5" fill="#fbf8f2"/>
-  <circle cx="48" cy="176" r="4.5" fill="#8f4320"/>
-  <text x="72" y="180" fill="#6f675e" font-family="ui-sans-serif, system-ui, sans-serif" font-size="11" letter-spacing="1.2">FILES</text>
-  <text x="140" y="180" fill="#1c1714" font-family="ui-sans-serif, system-ui, sans-serif" font-size="15">src/redact.ts · src/timeline/svg.ts · README.md</text>
-  <circle cx="48" cy="224" r="6.5" fill="#fbf8f2"/>
-  <circle cx="48" cy="224" r="4.5" fill="#2c6a4a"/>
-  <text x="72" y="228" fill="#6f675e" font-family="ui-sans-serif, system-ui, sans-serif" font-size="11" letter-spacing="1.2">TESTS</text>
-  <text x="140" y="228" fill="#1c1714" font-family="ui-sans-serif, system-ui, sans-serif" font-size="15">yes · pass · AWS_SECRET_ACCESS_KEY=[REDACTED_AWS_KEY] npm test</text>
-  <circle cx="48" cy="272" r="6.5" fill="#fbf8f2"/>
-  <circle cx="48" cy="272" r="4.5" fill="#1c1714"/>
-  <text x="72" y="276" fill="#6f675e" font-family="ui-sans-serif, system-ui, sans-serif" font-size="11" letter-spacing="1.2">SHIP</text>
-  <text x="140" y="276" fill="#1c1714" font-family="ui-sans-serif, system-ui, sans-serif" font-size="15">Ship the redacted timeline. Left [REDACTED_API_KEY] off the PR.</text>
-  <text x="72" y="318" fill="#6f675e" font-family="ui-sans-serif, system-ui, sans-serif" font-size="12">3 files touched  ·  tests pass  ·  redacted before posting</text>
+  <defs>
+    <linearGradient id="reel" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#39FF88"/>
+      <stop offset="1" stop-color="#22D3EE"/>
+    </linearGradient>
+    <filter id="accent-glow" x="-50%" y="-80%" width="200%" height="260%" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="2.4" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  <rect width="760" height="360" rx="18" fill="#0B0F14"/>
+  <rect x="16" y="16" width="728" height="328" rx="12" fill="#131A22" stroke="#263241"/>
+  <circle cx="40" cy="48" r="12" fill="#131A22" stroke="url(#reel)" stroke-width="2.5"/>
+  <circle cx="40" cy="48" r="3.5" fill="#1B2430"/>
+  <text x="60" y="54" fill="#E6EDF3" font-family="Inter, 'SF Mono', Menlo, Consolas, 'DejaVu Sans Mono', sans-serif" font-size="18" font-weight="800">AgentTape</text>
+  <text x="40" y="78" fill="#7D8A99" font-family="JetBrains Mono, 'SF Mono', Menlo, Consolas, 'DejaVu Sans Mono', monospace" font-size="13">feature/redact-timeline   ·   2026-11-01 15:04 UTC</text>
+  <rect x="508" y="36" width="110" height="24" rx="12" fill="#1B2430" stroke="#263241"/>
+  <text x="563" y="52" fill="#E6EDF3" font-family="JetBrains Mono, 'SF Mono', Menlo, Consolas, 'DejaVu Sans Mono', monospace" font-size="13" text-anchor="middle">Claude Code</text>
+  <g filter="url(#accent-glow)">
+    <rect x="628" y="36" width="104" height="24" rx="12" fill="#39FF88"/>
+  <text x="680" y="52" fill="#0B0F14" font-family="JetBrains Mono, 'SF Mono', Menlo, Consolas, 'DejaVu Sans Mono', monospace" font-size="12" font-weight="700" text-anchor="middle">REDACTED</text>
+  </g>
+  <line x1="40" y1="100" x2="720" y2="100" stroke="#263241"/>
+  <line x1="48" y1="132" x2="48" y2="276" stroke="#263241" stroke-width="2"/>
+  <circle cx="48" cy="132" r="7" fill="#131A22"/>
+  <circle cx="48" cy="132" r="4" fill="#22D3EE"/>
+  <text x="72" y="136" fill="#7D8A99" font-family="JetBrains Mono, 'SF Mono', Menlo, Consolas, 'DejaVu Sans Mono', monospace" font-size="13" letter-spacing="1.1">ASK</text>
+  <text x="150" y="136" fill="#E6EDF3" font-family="Inter, 'SF Mono', Menlo, Consolas, 'DejaVu Sans Mono', sans-serif" font-size="15">Strip keys and internal hosts before posting.</text>
+  <circle cx="48" cy="180" r="7" fill="#131A22"/>
+  <circle cx="48" cy="180" r="4" fill="#22D3EE"/>
+  <text x="72" y="184" fill="#7D8A99" font-family="JetBrains Mono, 'SF Mono', Menlo, Consolas, 'DejaVu Sans Mono', monospace" font-size="13" letter-spacing="1.1">FILES</text>
+  <text x="150" y="184" fill="#E6EDF3" font-family="JetBrains Mono, 'SF Mono', Menlo, Consolas, 'DejaVu Sans Mono', monospace" font-size="14">src/redact.ts · src/timeline/svg.ts · README.md</text>
+  <circle cx="48" cy="228" r="7" fill="#131A22"/>
+  <circle cx="48" cy="228" r="4" fill="#3DDC84"/>
+  <text x="72" y="232" fill="#7D8A99" font-family="JetBrains Mono, 'SF Mono', Menlo, Consolas, 'DejaVu Sans Mono', monospace" font-size="13" letter-spacing="1.1">TESTS</text>
+  <text x="150" y="232" fill="#E6EDF3" font-family="JetBrains Mono, 'SF Mono', Menlo, Consolas, 'DejaVu Sans Mono', monospace" font-size="14">yes · pass · AWS_SECRET_ACCESS_KEY=[REDACTED_AWS_KEY] npm test</text>
+  <circle cx="48" cy="276" r="7" fill="#131A22"/>
+  <circle cx="48" cy="276" r="4" fill="#E6EDF3"/>
+  <text x="72" y="280" fill="#7D8A99" font-family="JetBrains Mono, 'SF Mono', Menlo, Consolas, 'DejaVu Sans Mono', monospace" font-size="13" letter-spacing="1.1">SHIP</text>
+  <text x="150" y="280" fill="#E6EDF3" font-family="Inter, 'SF Mono', Menlo, Consolas, 'DejaVu Sans Mono', sans-serif" font-size="15">Ship the redacted timeline. Left [REDACTED_API_KEY] off the PR.</text>
+  <text x="72" y="322" fill="#7D8A99" font-family="JetBrains Mono, 'SF Mono', Menlo, Consolas, 'DejaVu Sans Mono', monospace" font-size="13">3 files touched  ·  tests pass  ·  redacted before posting</text>
 </svg>
