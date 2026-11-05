@@ -1,0 +1,47 @@
+{
+  "name": "agenttape",
+  "version": "0.1.0",
+  "description": "Turn a local coding-agent session into a redacted visual PR timeline.",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "agenttape": "./dist/cli.js"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json && chmod +x dist/cli.js",
+    "prepare": "npm run build",
+    "typecheck": "tsc -p tsconfig.test.json --noEmit",
+    "test": "tsc -p tsconfig.test.json --noEmit && tsx --test test/*.test.ts",
+    "agenttape": "tsx src/cli.ts"
+  },
+  "keywords": [
+    "cli",
+    "claude-code",
+    "aider",
+    "pull-request",
+    "redaction",
+    "timeline"
+  ],
+  "devDependencies": {
+    "@types/node": "^22.15.3",
+    "tsx": "^4.19.4",
+    "typescript": "^5.8.3"
+  },
+  "sideEffects": false
+}

@@ -1,0 +1,200 @@
+#!/usr/bin/env node
+import path from "node:path";
+import { runPr, toPublicJson, formatPosted } from "./run.js";
+import { NoSessionError } from "./discover.js";
+import type { SourceChoice } from "./discover.js";
+import { VERSION } from "./version.js";
+
+interface Args {
+  help: boolean;
+  version: boolean;
+  command?: string;
+  cwd?: string;
+  session?: string;
+  source: SourceChoice;
+  claudeHome?: string;
+  dryRun: boolean;
+  json: boolean;
+  redactEmails: boolean;
+}
+
+const HELP = `AgentTape turns a local coding-agent session into a redacted PR timeline.
+
+Usage:
+  agenttape pr [options]
+
+Options:
+  --cwd <dir>              Project directory (default: current directory)
+  --session <file>         Claude Code JSONL or Aider chat history to read
+  --source auto|claude|aider
+                           auto uses the newer relevant session (default: auto)
+  --claude-home <dir>      Claude config directory (default: ~/.claude or $CLAUDE_CONFIG_DIR)
+  --dry-run                Print the comment and do not call gh
+  --json                   Print the redacted summary as JSON on stdout
+  --redact-emails          Also redact email addresses
+  -h, --help               Show this help
+  -V, --version            Show the version
+
+Examples:
+  agenttape pr
+  agenttape pr --dry-run
+  agenttape pr --json --dry-run
+  agenttape pr --session fixtures/claude-session.jsonl --dry-run
+
+The comment is markdown (ASCII flow, a short table, mermaid). GitHub strips
+inline SVG, so the SVG is written under the system temp directory and the
+path is printed. AgentTape does not write into the repository.
+`;
+
+async function main(argv: string[]): Promise<number> {
+  let args: Args;
+  try {
+    args = parseArgs(argv);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    process.stderr.write(`${message}\n\n${HELP}`);
+    return 1;
+  }
+
+  if (args.version) {
+    process.stdout.write(`${VERSION}\n`);
+    return 0;
+  }
+  if (args.help || !args.command) {
+    process.stdout.write(HELP);
+    return args.help || !args.command ? 0 : 1;
+  }
+  if (args.command !== "pr") {
+    process.stderr.write(`Unknown command ${args.command}.\n\n${HELP}`);
+    return 1;
+  }
+
+  try {
+    const result = await runPr({
+      cwd: args.cwd ?? process.cwd(),
+      sessionPath: args.session,
+      source: args.source,
+      claudeHome: args.claudeHome,
+      dryRun: args.dryRun,
+      redactEmails: args.redactEmails,
+    });
+    writeResult(result, args.json);
+    return 0;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    process.stderr.write(`${message}\n`);
+    if (process.env.AGENTTAPE_DEBUG && error instanceof Error && error.stack) {
+      process.stderr.write(`${error.stack}\n`);
+    }
+    return error instanceof NoSessionError ? 1 : 1;
+  }
+}
+
+function writeResult(
+  result: Awaited<ReturnType<typeof runPr>>,
+  json: boolean,
+): void {
+  const diagnostics = [result.sessionNote, result.posted ? undefined : result.note, `SVG: ${result.svgPath}`]
+    .filter((line): line is string => Boolean(line))
+    .join("\n");
+
+  if (json) {
+    if (diagnostics) process.stderr.write(`${diagnostics}\n`);
+    if (result.posted) {
+      process.stderr.write(`${result.note}\n`);
+      if (result.prUrl) process.stderr.write(`${result.prUrl}\n`);
+    }
+    process.stdout.write(`${JSON.stringify(toPublicJson(result.summary), null, 2)}\n`);
+    return;
+  }
+
+  if (result.posted) {
+    process.stdout.write(formatPosted(result));
+    if (result.sessionNote) process.stderr.write(`${result.sessionNote}\n`);
+    return;
+  }
+
+  if (diagnostics) process.stderr.write(`${diagnostics}\n`);
+  process.stdout.write(result.comment.endsWith("\n") ? result.comment : `${result.comment}\n`);
+}
+
+function parseArgs(argv: string[]): Args {
+  const args: Args = {
+    help: false,
+    version: false,
+    source: "auto",
+    dryRun: false,
+    json: false,
+    redactEmails: false,
+  };
+  const rest = argv.slice(2);
+  const positional: string[] = [];
+  for (let index = 0; index < rest.length; index += 1) {
+    const token = rest[index];
+    if (token === undefined) continue;
+    const take = (): string => {
+      const value = rest[index + 1];
+      if (value === undefined || value.startsWith("-")) {
+        throw new Error(`Missing value for ${token}`);
+      }
+      index += 1;
+      return value;
+    };
+    switch (token) {
+      case "-h":
+      case "--help":
+        args.help = true;
+        break;
+      case "-V":
+      case "--version":
+        args.version = true;
+        break;
+      case "--dry-run":
+        args.dryRun = true;
+        break;
+      case "--json":
+        args.json = true;
+        break;
+      case "--redact-emails":
+        args.redactEmails = true;
+        break;
+      case "--cwd":
+        args.cwd = take();
+        break;
+      case "--session":
+        args.session = take();
+        break;
+      case "--claude-home":
+        args.claudeHome = take();
+        break;
+      case "--source": {
+        const value = take();
+        if (value !== "auto" && value !== "claude" && value !== "aider") {
+          throw new Error(`Unknown --source ${value}. Use auto, claude, or aider.`);
+        }
+        args.source = value;
+        break;
+      }
+      default:
+        if (token.startsWith("-")) throw new Error(`Unknown option ${token}`);
+        positional.push(token);
+    }
+  }
+  if (positional.length > 1) {
+    throw new Error(`Unexpected argument ${positional.slice(1).join(" ")}`);
+  }
+  args.command = positional[0];
+  if (args.cwd) args.cwd = path.resolve(args.cwd);
+  return args;
+}
+
+main(process.argv).then(
+  (code) => {
+    process.exitCode = code;
+  },
+  (error: unknown) => {
+    const message = error instanceof Error ? error.message : String(error);
+    process.stderr.write(`${message}\n`);
+    process.exitCode = 1;
+  },
+);

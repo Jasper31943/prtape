@@ -1,0 +1,38 @@
+/** Synthetic tokens planted in fixtures. They are not credentials. */
+export const SECRET_CANARIES = [
+  "sk-ant-api03-CANARYANTHROPIC000000000000",
+  "sk-proj-CANARYOPENAI0000000000000000",
+  "ghp_CANARYGITHUBPERSONAL000000000000",
+  "gho_CANARYGITHUBOAUTH00000000000000",
+  "ghs_CANARYGITHUBSERVER0000000000000",
+  "ghu_CANARYGITHUBUSER00000000000000",
+  "ghr_CANARYGITHUBREFRESH000000000000",
+  "AKIAFAKECANARYKEY001",
+  "AWS_SECRET_VALUE_CANARY_0123456789abcd",
+  "10.9.8.7",
+  "192.168.44.21",
+  "172.20.3.15",
+  "db.staging.internal",
+  "cache.svc.local",
+] as const;
+
+export const EMAIL_CANARY = "canary.dev@example.com";
+
+export const CLAUDE_LEAK_MARKERS = [
+  "ABANDONED_PATH_MARKER",
+  "CONTENT_CANARY_DO_NOT_LEAK",
+  "SIDECHAIN_ONLY_MARKER",
+  "META_REMINDER_MARKER",
+  "THINKING_CANARY_DO_NOT_LEAK",
+  "IGNORE_SNAPSHOT_MARKER",
+] as const;
+
+export const AIDER_LEAK_MARKERS = [
+  "OLDSESSIONSHOULDNOTRENDER",
+  "CONTENT_CANARY_DO_NOT_LEAK",
+  "FENCED_PROMPT_MARKER",
+  "src/fenced-trap.ts",
+  "src/old.ts",
+] as const;
+
+export const ACTIVE_MARKER = "ACTIVE_SESSION_OK";
