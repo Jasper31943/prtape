@@ -36,7 +36,7 @@ describe("Aider adapter", () => {
       assertMarkersAbsent(rendered, AIDER_LEAK_MARKERS);
       assert.equal(rendered.includes("[REDACTED"), false);
     }
-    assert.equal(presented.summary.title, "Ship the redacted timeline; secrets stay off the PR.");
+    assert.equal(presented.summary.title, "Strip secrets before posting the timeline.");
     assert.equal(presented.summary.decision, "Ship the redacted timeline; secrets stay off the PR.");
     assert.equal(presented.summary.tests[0]?.command, "npm test");
     assert.match(comment, /ask ──▶ 1 file ──▶ tests pass ──▶ ship/);

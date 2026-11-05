@@ -53,10 +53,6 @@ export function renderSvg(input: SessionSummary, options: RedactOptions = {}): s
   parts.push(`      <stop offset="0" stop-color="${ACCENT}"/>`);
   parts.push(`      <stop offset="1" stop-color="${ACCENT2}"/>`);
   parts.push(`    </linearGradient>`);
-  parts.push(`    <pattern id="idle" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">`);
-  parts.push(`      <rect width="6" height="6" fill="${CARD}"/>`);
-  parts.push(`      <line x1="0" y1="0" x2="0" y2="6" stroke="#263241" stroke-width="2"/>`);
-  parts.push(`    </pattern>`);
   parts.push(`  </defs>`);
   parts.push(`  <rect width="${WIDTH}" height="${HEIGHT}" rx="18" fill="${BG}"/>`);
   parts.push(`  <rect x="16" y="16" width="928" height="448" rx="14" fill="${CARD}" stroke="${ACCENT}" stroke-width="1.5"/>`);
@@ -113,7 +109,7 @@ function wordmark(x: number, y: number): string {
 }
 
 function chips(source: string, maskedCount: number): string {
-  const masked = maskedCount > 0 ? `masked ×${maskedCount}` : "";
+  const masked = maskedCount > 0 ? `redacted ×${maskedCount}` : "";
   const maskedW = masked ? Math.max(108, masked.length * 8 + 22) : 0;
   const sourceW = Math.max(108, source.length * 8.2 + 24);
   const right = 928;
@@ -131,21 +127,20 @@ function chips(source: string, maskedCount: number): string {
 }
 
 function track(active: Set<string>): string {
+  const beats = BEATS.filter((beat) => active.has(beat.label));
   const x0 = 36;
   const y = 78;
   const width = 888;
-  const gap = 4;
-  const blockW = (width - gap * (BEATS.length - 1)) / BEATS.length;
+  const gap = 6;
+  const blockW = (width - gap * (beats.length - 1)) / beats.length;
   const chunks: string[] = [`  <rect x="${x0}" y="${y}" width="${width}" height="22" rx="6" fill="${TRACK}"/>`];
-  BEATS.forEach((beat, index) => {
+  beats.forEach((beat, index) => {
     const x = x0 + index * (blockW + gap);
-    const on = active.has(beat.label);
-    const fill = on ? beat.color : "url(#idle)";
-    chunks.push(`  <rect x="${x.toFixed(1)}" y="${y}" width="${blockW.toFixed(1)}" height="22" rx="4" fill="${fill}"/>`);
+    chunks.push(`  <rect x="${x.toFixed(1)}" y="${y}" width="${blockW.toFixed(1)}" height="22" rx="4" fill="${beat.color}"/>`);
     chunks.push(
       text(x + blockW / 2, y + 40, beat.label, {
         size: 13,
-        fill: on ? beat.color : MUTED,
+        fill: beat.color,
         family: "mono",
         anchor: "middle",
       }),

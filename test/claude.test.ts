@@ -79,7 +79,7 @@ describe("Claude Code adapter", () => {
       assert.equal(rendered.includes("src/abandoned.ts"), false);
       assert.equal(rendered.includes("src/sidechain-only.ts"), false);
     }
-    assert.equal(presented.summary.title, "Ship the redacted timeline; secrets stay off the PR.");
+    assert.equal(presented.summary.title, "Strip keys and internal hosts before posting.");
     assert.equal(presented.summary.decision, "Ship the redacted timeline; secrets stay off the PR.");
     assert.equal(presented.summary.tests[0]?.command, "npm test");
     assert.equal(json.includes(EMAIL_CANARY), false);

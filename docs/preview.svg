@@ -7,10 +7,6 @@
       <stop offset="0" stop-color="#39FF88"/>
       <stop offset="1" stop-color="#22D3EE"/>
     </linearGradient>
-    <pattern id="idle" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
-      <rect width="6" height="6" fill="#101820"/>
-      <line x1="0" y1="0" x2="0" y2="6" stroke="#263241" stroke-width="2"/>
-    </pattern>
   </defs>
   <rect width="960" height="480" rx="18" fill="#0B0F14"/>
   <rect x="16" y="16" width="928" height="448" rx="14" fill="#101820" stroke="#39FF88" stroke-width="1.5"/>
@@ -27,23 +23,19 @@
     <tspan fill="#E6EDF3">Agent</tspan><tspan fill="#39FF88">Tape</tspan>
     <tspan fill="#7D8A99" font-size="14" font-weight="400"> · agent replay</tspan>
   </text>
-  <rect x="697.8" y="34" width="114.19999999999999" height="28" rx="14" fill="#1B2430" stroke="#263241"/>
-  <text x="754.9" y="53" fill="#E6EDF3" font-family="JetBrains Mono, 'SF Mono', Menlo, Consolas, 'DejaVu Sans Mono', monospace" font-size="13" text-anchor="middle">Claude Code</text>
-  <rect x="820" y="34" width="108" height="28" rx="14" fill="#0F2A1D" stroke="#39FF88"/>
-  <text x="874.0" y="53" fill="#39FF88" font-family="JetBrains Mono, 'SF Mono', Menlo, Consolas, 'DejaVu Sans Mono', monospace" font-size="13" font-weight="700" text-anchor="middle">masked ×16</text>
+  <rect x="687.8" y="34" width="114.19999999999999" height="28" rx="14" fill="#1B2430" stroke="#263241"/>
+  <text x="744.9" y="53" fill="#E6EDF3" font-family="JetBrains Mono, 'SF Mono', Menlo, Consolas, 'DejaVu Sans Mono', monospace" font-size="13" text-anchor="middle">Claude Code</text>
+  <rect x="810" y="34" width="118" height="28" rx="14" fill="#0F2A1D" stroke="#39FF88"/>
+  <text x="869.0" y="53" fill="#39FF88" font-family="JetBrains Mono, 'SF Mono', Menlo, Consolas, 'DejaVu Sans Mono', monospace" font-size="13" font-weight="700" text-anchor="middle">redacted ×16</text>
   <rect x="36" y="78" width="888" height="22" rx="6" fill="#1B2430"/>
-  <rect x="36.0" y="78" width="144.7" height="22" rx="4" fill="#33445A"/>
-  <text x="108.3" y="118" fill="#33445A" font-family="JetBrains Mono, 'SF Mono', Menlo, Consolas, 'DejaVu Sans Mono', monospace" font-size="13" text-anchor="middle">read</text>
-  <rect x="184.7" y="78" width="144.7" height="22" rx="4" fill="#22D3EE"/>
-  <text x="257.0" y="118" fill="#22D3EE" font-family="JetBrains Mono, 'SF Mono', Menlo, Consolas, 'DejaVu Sans Mono', monospace" font-size="13" text-anchor="middle">edit</text>
-  <rect x="333.3" y="78" width="144.7" height="22" rx="4" fill="url(#idle)"/>
-  <text x="405.7" y="118" fill="#7D8A99" font-family="JetBrains Mono, 'SF Mono', Menlo, Consolas, 'DejaVu Sans Mono', monospace" font-size="13" text-anchor="middle">fail</text>
-  <rect x="482.0" y="78" width="144.7" height="22" rx="4" fill="url(#idle)"/>
-  <text x="554.3" y="118" fill="#7D8A99" font-family="JetBrains Mono, 'SF Mono', Menlo, Consolas, 'DejaVu Sans Mono', monospace" font-size="13" text-anchor="middle">fix</text>
-  <rect x="630.7" y="78" width="144.7" height="22" rx="4" fill="#3DDC84"/>
-  <text x="703.0" y="118" fill="#3DDC84" font-family="JetBrains Mono, 'SF Mono', Menlo, Consolas, 'DejaVu Sans Mono', monospace" font-size="13" text-anchor="middle">pass</text>
-  <rect x="779.3" y="78" width="144.7" height="22" rx="4" fill="#39FF88"/>
-  <text x="851.7" y="118" fill="#39FF88" font-family="JetBrains Mono, 'SF Mono', Menlo, Consolas, 'DejaVu Sans Mono', monospace" font-size="13" text-anchor="middle">commit</text>
+  <rect x="36.0" y="78" width="217.5" height="22" rx="4" fill="#33445A"/>
+  <text x="144.8" y="118" fill="#33445A" font-family="JetBrains Mono, 'SF Mono', Menlo, Consolas, 'DejaVu Sans Mono', monospace" font-size="13" text-anchor="middle">read</text>
+  <rect x="259.5" y="78" width="217.5" height="22" rx="4" fill="#22D3EE"/>
+  <text x="368.3" y="118" fill="#22D3EE" font-family="JetBrains Mono, 'SF Mono', Menlo, Consolas, 'DejaVu Sans Mono', monospace" font-size="13" text-anchor="middle">edit</text>
+  <rect x="483.0" y="78" width="217.5" height="22" rx="4" fill="#3DDC84"/>
+  <text x="591.8" y="118" fill="#3DDC84" font-family="JetBrains Mono, 'SF Mono', Menlo, Consolas, 'DejaVu Sans Mono', monospace" font-size="13" text-anchor="middle">pass</text>
+  <rect x="706.5" y="78" width="217.5" height="22" rx="4" fill="#39FF88"/>
+  <text x="815.3" y="118" fill="#39FF88" font-family="JetBrains Mono, 'SF Mono', Menlo, Consolas, 'DejaVu Sans Mono', monospace" font-size="13" text-anchor="middle">commit</text>
   <rect x="32" y="132" width="896" height="86" rx="10" fill="#17212C"/>
   <text x="48.0" y="156" fill="#7D8A99" font-family="JetBrains Mono, 'SF Mono', Menlo, Consolas, 'DejaVu Sans Mono', monospace" font-size="13" font-weight="700">FILES TOUCHED · 3</text>
   <rect x="48" y="172" width="139.8" height="28" rx="7" fill="#0B0F14" stroke="#263241"/>

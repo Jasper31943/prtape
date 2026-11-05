@@ -13,7 +13,7 @@ export interface Presented {
   summary: SessionSummary;
   /** True when a secret was removed from a string a reviewer might read. */
   secretsStripped: boolean;
-  /** How many secret spans were removed. Drives `masked ×N` and nothing else. */
+  /** How many secret spans were removed. Drives the `redacted ×N` badge only. */
   maskedCount: number;
 }
 
@@ -27,7 +27,7 @@ export function presentSummary(input: SessionSummary, options: RedactOptions = {
   const secretsStripped = maskedCount > 0;
 
   const decision = scrubDecision(input.decision, input, options);
-  const title = decision === LOCKED_DECISION ? LOCKED_DECISION : scrubTitle(input.title, options);
+  const title = scrubTitle(input.title, options);
   const files = input.files
     .map((file) => ({ ...file, path: scrubPiece(file.path, options) }))
     .filter((file) => file.path.length > 0);

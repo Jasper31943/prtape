@@ -25,10 +25,12 @@ describe("timeline snapshots", () => {
     assert.match(svg, /height="480"/);
     assert.match(svg, />read</);
     assert.match(svg, />edit</);
-    assert.match(svg, />fail</);
-    assert.match(svg, />fix</);
+    assert.doesNotMatch(svg, />fail</);
+    assert.doesNotMatch(svg, />fix</);
     assert.match(svg, />pass</);
     assert.match(svg, />commit</);
+    assert.match(svg, /redacted ×16/);
+    assert.doesNotMatch(svg, /masked ×/);
     assert.match(svg, /FILES TOUCHED/);
     assert.match(svg, /TESTS RAN/);
     assert.match(svg, /KEY DECISION/);
