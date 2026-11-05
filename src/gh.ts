@@ -75,13 +75,15 @@ export function explainGhFailure(result: CommandResult): string {
   return detail;
 }
 
-/** Look up the PR for `cwd` and comment with `body` on stdin (not argv). */
+/** Look up the PR for `cwd` (or `prNumber`) and comment with `body` on stdin (not argv). */
 export async function postComment(
   cwd: string,
   body: string,
   runner: CommandRunner = defaultRunner,
+  prNumber?: number,
 ): Promise<PrRef> {
-  const view = await runner("gh", ["pr", "view", "--json", "number,url,title"], { cwd });
+  const selector = prNumber !== undefined ? [String(prNumber)] : [];
+  const view = await runner("gh", ["pr", "view", ...selector, "--json", "number,url,title"], { cwd });
   if (view.code !== 0) throw new GhError(explainGhFailure(view));
 
   let parsed: { number?: unknown; url?: unknown };

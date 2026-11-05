@@ -32,6 +32,8 @@ export interface RunOptions {
   claudeHome?: string;
   dryRun: boolean;
   redactEmails: boolean;
+  /** Comment on this pull request instead of the one for the current branch. */
+  prNumber?: number;
   tmpDir?: string;
   runner?: CommandRunner;
   recentFiles?: string[];
@@ -144,7 +146,7 @@ export async function runPr(options: RunOptions): Promise<RunResult> {
   }
 
   try {
-    const pr = await postComment(cwd, comment, options.runner);
+    const pr = await postComment(cwd, comment, options.runner, options.prNumber);
     if (!hosted.ok) {
       return {
         ...base,

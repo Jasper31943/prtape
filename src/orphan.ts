@@ -134,6 +134,9 @@ export function pushOrphanPng(input: {
   tmpRoot?: string;
   useGhCredential?: boolean;
 }): (HostedPng) | HostFailure {
+  if (process.env.AGENTTAPE_DENY_PUSH === "1") {
+    return { ok: false, glance: glancePushDenied() };
+  }
   const git = input.git ?? defaultGit;
   const tmp = fs.mkdtempSync(path.join(input.tmpRoot ?? os.tmpdir(), "agenttape-orphan-"));
   const identity = gitIdentity(git);

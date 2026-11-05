@@ -16,6 +16,7 @@ interface Args {
   dryRun: boolean;
   json: boolean;
   redactEmails: boolean;
+  prNumber?: number;
 }
 
 const HELP = `AgentTape turns a local coding-agent session into a redacted PR timeline.
@@ -26,6 +27,7 @@ Usage:
 Options:
   --cwd <dir>              Project directory (default: current directory)
   --session <file>         Claude Code JSONL or Aider chat history to read
+  --pr <number>            Comment on this pull request (default: PR for the current branch)
   --source auto|claude|aider
                            auto uses the newer relevant session (default: auto)
   --claude-home <dir>      Claude config directory (default: ~/.claude or $CLAUDE_CONFIG_DIR)
@@ -79,6 +81,7 @@ async function main(argv: string[]): Promise<number> {
       claudeHome: args.claudeHome,
       dryRun: args.dryRun,
       redactEmails: args.redactEmails,
+      prNumber: args.prNumber,
     });
     writeResult(result, args.json);
     return 0;
@@ -173,6 +176,14 @@ function parseArgs(argv: string[]): Args {
       case "--session":
         args.session = take();
         break;
+      case "--pr": {
+        const value = Number(take());
+        if (!Number.isInteger(value) || value <= 0) {
+          throw new Error("--pr expects a positive pull request number");
+        }
+        args.prNumber = value;
+        break;
+      }
       case "--claude-home":
         args.claudeHome = take();
         break;

@@ -11,6 +11,22 @@ import { parseClaude } from "../src/adapters/claude.js";
 import { fixture } from "./helpers.js";
 
 describe("orphan PNG ref", () => {
+  it("AGENTTAPE_DENY_PUSH forces the mermaid fallback without pushing", () => {
+    const previous = process.env.AGENTTAPE_DENY_PUSH;
+    process.env.AGENTTAPE_DENY_PUSH = "1";
+    try {
+      const result = pushOrphanPng({ remote: "/tmp/agenttape-should-not-push", png: Buffer.from("png") });
+      assert.equal(result.ok, false);
+      if (!result.ok) {
+        assert.match(result.glance, /was denied/);
+        assert.match(result.glance, /ASCII \+ mermaid/);
+      }
+    } finally {
+      if (previous === undefined) delete process.env.AGENTTAPE_DENY_PUSH;
+      else process.env.AGENTTAPE_DENY_PUSH = previous;
+    }
+  });
+
   it("names the permission failure and the fix in one glance", () => {
     const glance = glancePushDenied();
     assert.match(glance, /Image not posted/);
