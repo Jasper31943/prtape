@@ -153,7 +153,7 @@ export async function runPr(options: RunOptions): Promise<RunResult> {
         posted: true,
         prNumber: pr.number,
         prUrl: pr.url || undefined,
-        note: `${hosted.glance}\nText comment posted on PR #${pr.number}. The PNG is not in the comment.`,
+        note: `${hosted.glance}\n${pr.updated ? "Updated" : "Posted"} the text timeline on PR #${pr.number}. The PNG is not in the comment.`,
       };
     }
     return {
@@ -161,7 +161,7 @@ export async function runPr(options: RunOptions): Promise<RunResult> {
       posted: true,
       prNumber: pr.number,
       prUrl: pr.url || undefined,
-      note: `Commented on PR #${pr.number} with the hosted PNG.\n${hosted.url}`,
+      note: `${pr.updated ? "Updated" : "Commented on"} PR #${pr.number} with the hosted PNG.\n${hosted.url}`,
     };
   } catch (error) {
     const reason = error instanceof GhError ? error.message : "Could not post the comment.";

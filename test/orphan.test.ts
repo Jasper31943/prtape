@@ -62,8 +62,10 @@ describe("orphan PNG ref", () => {
     if (!first.ok) return;
     assert.equal(first.ref, `refs/agenttape/${head}`);
     assert.throws(() => git(bare, ["rev-parse", "--verify", `${first.sha}^`]));
-    assert.match(git(bare, ["ls-tree", "--name-only", first.sha]), new RegExp(ORPHAN_FILE));
-    assert.match(git(bare, ["ls-tree", "--name-only", first.sha]), /README\.md/);
+    assert.deepEqual(
+      git(bare, ["ls-tree", "--name-only", first.sha]).trim().split("\n").filter(Boolean),
+      [ORPHAN_FILE],
+    );
     assert.equal(git(bare, ["rev-parse", first.ref]).trim(), first.sha);
     assert.equal(git(bare, ["for-each-ref", "--format=%(refname)", "refs/heads"]).includes("agenttape"), false);
 

@@ -17,12 +17,6 @@ import {
 
 export const ORPHAN_FILE = "timeline.png";
 
-const ORPHAN_README = `# AgentTape
-
-This orphan ref stores one redacted timeline PNG for a pull-request comment.
-It is not on the default branch and it does not merge into main.
-`;
-
 export interface HostedPng {
   ok: true;
   url: string;
@@ -69,9 +63,9 @@ export interface HostInput {
 }
 
 /**
- * Build a parentless commit containing only the PNG and a tiny README, then
- * push it to `refs/agenttape/<head-sha>`. The user's index, HEAD, branch, and
- * working tree are not modified. The comment URL is
+ * Build a parentless commit whose tree is exactly `timeline.png`, then push
+ * it to `refs/agenttape/<head-sha>`. No other blobs. The user's index, HEAD,
+ * branch, and working tree are not modified. The comment URL is
  * `https://github.com/{owner}/{repo}/raw/{commit}/timeline.png`.
  */
 export async function hostTimelinePng(input: HostInput): Promise<HostResult> {
@@ -147,13 +141,10 @@ export function pushOrphanPng(input: {
   git(["config", "user.email", identity.email], tmp);
 
   const pngPath = path.join(tmp, ORPHAN_FILE);
-  const readmePath = path.join(tmp, "README.md");
   fs.writeFileSync(pngPath, input.png, { mode: 0o600 });
-  fs.writeFileSync(readmePath, ORPHAN_README, { mode: 0o600 });
 
   const pngBlob = git(["hash-object", "-w", pngPath], tmp).stdout.trim();
-  const readmeBlob = git(["hash-object", "-w", readmePath], tmp).stdout.trim();
-  if (!/^[0-9a-f]{40}$/i.test(pngBlob) || !/^[0-9a-f]{40}$/i.test(readmeBlob)) {
+  if (!/^[0-9a-f]{40}$/i.test(pngBlob)) {
     return { ok: false, glance: glancePushOther("git hash-object did not return a blob id.") };
   }
 
@@ -166,7 +157,7 @@ export function pushOrphanPng(input: {
     return { ok: false, glance: glancePushOther(message) };
   }
 
-  const treeSpec = [`100644 blob ${readmeBlob}\tREADME.md`, `100644 blob ${pngBlob}\t${ORPHAN_FILE}`, ""].join("\n");
+  const treeSpec = `100644 blob ${pngBlob}\t${ORPHAN_FILE}\n`;
   const tree = git(["mktree"], tmp, treeSpec);
   const treeSha = tree.stdout.trim();
   if (tree.code !== 0 || !/^[0-9a-f]{40}$/i.test(treeSha)) {

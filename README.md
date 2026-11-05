@@ -38,13 +38,13 @@ Tokens in square brackets in the fixture render are redaction markers, not real 
 
 ## Orphan ref
 
-`agenttape pr` builds a parentless commit (PNG + a tiny README) with `git hash-object`, `git mktree`, and `git commit-tree` in a temp repository. It then runs:
+`agenttape pr` builds a parentless commit whose tree is only `timeline.png`, using `git hash-object`, `git mktree`, and `git commit-tree` in a temp repository. It then runs:
 
 ```text
 git push origin +<commit>:refs/agenttape/<head>
 ```
 
-`<head>` is the SHA already on your branch. The new commit has no parent, and the destination is `refs/agenttape/…`, not `refs/heads/…`, so it cannot merge into main and it is not your PR branch. The push does not update your index or working tree, and it does not create `.agenttape/`.
+`<head>` is the SHA already on your branch. The new commit has no parent, and the destination is `refs/agenttape/…`, not `refs/heads/…`, so it cannot merge into main and it is not your PR branch. The push does not update your index or working tree, and it does not create `.agenttape/`. The tree contains `timeline.png` and nothing else. Running `agenttape pr` again updates the latest AgentTape comment on that pull request instead of posting a second one.
 
 The comment image is exactly:
 

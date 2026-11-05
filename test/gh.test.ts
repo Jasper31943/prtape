@@ -12,6 +12,35 @@ function result(partial: Partial<CommandResult>): CommandResult {
   return { code: partial.code ?? 1, stdout: partial.stdout ?? "", stderr: partial.stderr ?? "" };
 }
 
+function githubRunner(
+  calls: { args: string[]; input?: string }[],
+  comments: unknown[],
+): CommandRunner {
+  return async (_command, args, options) => {
+    calls.push({ args, input: options.input });
+    if (args[0] === "pr" && args[1] === "view") {
+      const number = args[2] === "--json" ? 12 : Number(args[2]);
+      return result({
+        code: 0,
+        stdout: JSON.stringify({ number, url: "https://github.com/acme/demo/pull/" + String(number) }),
+      });
+    }
+    if (args[0] === "api" && args[1] === "user") {
+      return result({ code: 0, stdout: JSON.stringify({ login: "octocat" }) });
+    }
+    if (args[0] === "api" && args[1] === "--paginate") {
+      return result({ code: 0, stdout: JSON.stringify(comments) });
+    }
+    if (args[0] === "api" && args[1] === "--method" && args[2] === "POST") {
+      return result({ code: 0, stdout: JSON.stringify({ id: 100 }) });
+    }
+    if (args[0] === "api" && args[1] === "--method" && args[2] === "PATCH") {
+      return result({ code: 0, stdout: JSON.stringify({ id: 4 }) });
+    }
+    return result({ code: 0, stdout: "" });
+  };
+}
+
 describe("gh", () => {
   it("explains a missing binary, a missing login, and a missing PR", () => {
     assert.match(explainGhFailure(result({ code: 127, stderr: "gh not found" })), /not installed/);
@@ -67,7 +96,7 @@ describe("gh", () => {
       dryRun: false,
       redactEmails: false,
       tmpDir,
-      runner,
+      runner: githubRunner(calls, []),
       hostImage: async () => ({
         ok: true,
         url: imageUrl,
@@ -79,22 +108,99 @@ describe("gh", () => {
     assert.equal(posted.posted, true);
     assert.equal(posted.imageHosted, true);
     assert.equal(posted.prNumber, 12);
-    const commentCall = calls.find((call) => call.args[1] === "comment");
+    const commentCall = calls.find((call) => call.args[1] === "--method" && call.args[2] === "POST");
     assert.ok(commentCall);
-    assert.equal(commentCall?.args.includes("--body-file"), true);
-    assert.match(commentCall?.input ?? "", /^!\[AgentTape timeline\]\(https:\/\/github\.com\/acme\/demo\/raw\/abc123def\/timeline\.png\)/);
-    assert.match(commentCall?.input ?? "", /github\.com\/acme\/demo\/raw\/abc123def\/timeline\.png/);
-    assert.doesNotMatch(commentCall?.input ?? "", /```mermaid/);
-    assert.doesNotMatch(commentCall?.input ?? "", /ask ──▶/);
-    assert.match(commentCall?.input ?? "", /\*\*Ship the redacted timeline/);
-    assert.match(commentCall?.input ?? "", /private repo/i);
+    assert.equal(commentCall?.args.includes("--input"), true);
+    const createdBody = JSON.parse(commentCall?.input ?? "{}") as { body?: string };
+    assert.match(createdBody.body ?? "", /^!\[AgentTape timeline\]\(https:\/\/github\.com\/acme\/demo\/raw\/abc123def\/timeline\.png\)/);
+    assert.match(createdBody.body ?? "", /github\.com\/acme\/demo\/raw\/abc123def\/timeline\.png/);
+    assert.doesNotMatch(createdBody.body ?? "", /```mermaid/);
+    assert.doesNotMatch(createdBody.body ?? "", /ask ──▶/);
+    assert.match(createdBody.body ?? "", /\*\*Ship the redacted timeline/);
+    assert.match(createdBody.body ?? "", /private repo/i);
     assert.match(posted.note, /hosted PNG/);
     for (const canary of SECRET_CANARIES) {
-      assert.equal(commentCall?.input?.includes(canary), false, canary);
+      assert.equal(createdBody.body?.includes(canary), false, canary);
       assert.equal(posted.comment.includes(canary), false);
       assert.equal(posted.svg.includes(canary), false);
     }
     assert.deepEqual(fs.readdirSync(cwd), before);
+    assert.equal(posted.prNumber, 12);
+  });
+
+  it("updates the latest AgentTape comment instead of creating another", async () => {
+    const calls: { args: string[]; input?: string }[] = [];
+    const comments = [
+      {
+        id: 9,
+        user: { login: "octocat" },
+        body: "### AgentTape\nolder fallback",
+        created_at: "2026-01-02T00:00:00Z",
+      },
+      {
+        id: 4,
+        user: { login: "octocat" },
+        body: "![AgentTape timeline](https://github.com/acme/demo/raw/oldsha/timeline.png)\n",
+        created_at: "2026-01-03T00:00:00Z",
+      },
+      {
+        id: 11,
+        user: { login: "someone-else" },
+        body: "### AgentTape\nnot mine",
+        created_at: "2026-01-04T00:00:00Z",
+      },
+    ];
+    const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "agenttape-upsert-"));
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "agenttape-svg-"));
+    const session = path.join(root, "fixtures", "claude-session.jsonl");
+    const imageUrl = "https://github.com/acme/demo/raw/abc123def/timeline.png";
+    const posted = await runPr({
+      cwd,
+      sessionPath: session,
+      source: "auto",
+      dryRun: false,
+      redactEmails: false,
+      tmpDir,
+      prNumber: 1,
+      runner: githubRunner(calls, comments),
+      hostImage: async () => ({
+        ok: true,
+        url: imageUrl,
+        sha: "abc123def",
+        ref: "refs/agenttape/abc123def",
+        isPrivate: false,
+      }),
+    });
+    const patches = calls.filter((call) => call.args[1] === "--method" && call.args[2] === "PATCH");
+    const posts = calls.filter((call) => call.args[1] === "--method" && call.args[2] === "POST");
+    assert.equal(posts.length, 0);
+    assert.equal(patches.length, 1);
+    assert.equal(patches[0]?.args[3], "repos/acme/demo/issues/comments/4");
+    assert.equal(posted.prNumber, 1);
+    assert.match(posted.note, /Updated/);
+
+    calls.length = 0;
+    const denied = await runPr({
+      cwd,
+      sessionPath: session,
+      source: "auto",
+      dryRun: false,
+      redactEmails: false,
+      tmpDir,
+      prNumber: 1,
+      runner: githubRunner(calls, comments),
+      hostImage: async () => ({
+        ok: false,
+        glance: "Image not posted: push to orphan ref refs/agenttape/<sha> was denied.\nFell back to the text timeline (ASCII + mermaid).",
+      }),
+    });
+    const denyPatches = calls.filter((call) => call.args[1] === "--method" && call.args[2] === "PATCH");
+    const denyPosts = calls.filter((call) => call.args[1] === "--method" && call.args[2] === "POST");
+    assert.equal(denyPosts.length, 0);
+    assert.equal(denyPatches.length, 1);
+    assert.equal(denyPatches[0]?.args[3], "repos/acme/demo/issues/comments/4");
+    assert.match(JSON.parse(denyPatches[0]?.input ?? "{}").body as string, /```mermaid/);
+    assert.equal(denied.posted, true);
   });
 
   it("returns the comment instead of throwing when gh cannot find a PR", async () => {
