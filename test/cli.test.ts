@@ -61,7 +61,8 @@ describe("cli", () => {
     const parsed = JSON.parse(result.stdout) as { testsRun: boolean; source: string; decision: string; title: string };
     assert.equal(parsed.source, "aider");
     assert.equal(parsed.testsRun, true);
-    assert.equal(parsed.decision, "Ship the redacted timeline.");
+    assert.equal(parsed.title, "Ship the redacted timeline; secrets stay off the PR.");
+    assert.equal(parsed.decision, "Ship the redacted timeline; secrets stay off the PR.");
     assert.equal(parsed.title.includes("[REDACTED"), false);
     assert.equal(result.stdout.includes("[REDACTED"), false);
     assert.equal(result.stdout.includes("### AgentTape"), false);

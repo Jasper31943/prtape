@@ -60,14 +60,14 @@ export function renderSvg(input: SessionSummary, options: RedactOptions = {}): s
   parts.push(`  </defs>`);
   parts.push(`  <rect width="${WIDTH}" height="${HEIGHT}" rx="18" fill="${BG}"/>`);
   parts.push(`  <rect x="16" y="16" width="928" height="448" rx="14" fill="${CARD}" stroke="${ACCENT}" stroke-width="1.5"/>`);
-  parts.push(reelMark(32, 30, 28));
-  parts.push(wordmark(68, 50));
+  parts.push(reelMark(28, 26, 48));
+  parts.push(wordmark(86, 52));
   parts.push(chips(source, maskedCount));
   parts.push(track(active));
   parts.push(filesRow(summary));
   parts.push(testsRow(summary));
   parts.push(decisionRow(summary.decision));
-  parts.push(footer(maskedCount));
+  parts.push(footer());
   parts.push(`</svg>`);
   parts.push("");
   return parts.join("\n");
@@ -84,14 +84,17 @@ function activeBeats(summary: SessionSummary): Set<string> {
   return on;
 }
 
-/** Brand reel from the logo mark, scaled. The ring is the only gradient. */
+/**
+ * Reel portion of logo-mark.svg. The prompt caret is left out here: at header
+ * size it reads as a terminal `>_` glyph. The arc, tape, and hubs stay.
+ */
 function reelMark(x: number, y: number, size: number): string {
   const scale = (size / 128).toFixed(4);
   return [
-    `  <g transform="translate(${x} ${y}) scale(${scale})">`,
+    `  <g transform="translate(${x} ${y}) scale(${scale})" aria-label="AgentTape reel">`,
+    `    <rect width="128" height="128" rx="28" fill="${BG}"/>`,
     `    <g transform="translate(0 6)">`,
     `      <path d="M112 91 H52 A33 33 0 1 1 52 25 A33 33 0 1 1 52 91" fill="none" stroke="url(#reel)" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>`,
-    `      <polyline points="41,46 57,58 41,70" fill="none" stroke="${ACCENT2}" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>`,
     `      <rect x="62" y="68" width="14" height="6" rx="1.5" fill="${ACCENT}"/>`,
     `      <circle cx="82" cy="91" r="5.5" fill="${ACCENT}" stroke="${BG}" stroke-width="3"/>`,
     `      <circle cx="102" cy="91" r="5.5" fill="${REMOVE}" stroke="${BG}" stroke-width="3"/>`,
@@ -162,10 +165,10 @@ function filesRow(summary: SessionSummary): string {
     return chunks.join("\n");
   }
   for (const name of names) {
-    const w = Math.min(220, Math.max(88, name.length * 7.6 + 22));
+    const w = name.length * 8.6 + 28;
     chunks.push(`  <rect x="${x}" y="${y + 40}" width="${w.toFixed(1)}" height="28" rx="7" fill="${BG}" stroke="#263241"/>`);
-    chunks.push(text(x + 12, y + 59, clip(name, 28), { size: 14, fill: INK, family: "mono" }));
-    x += w + 8;
+    chunks.push(text(x + 14, y + 59, name, { size: 14, fill: INK, family: "mono" }));
+    x += w + 18;
   }
   if (extra > 0) chunks.push(text(x, y + 59, `+${extra}`, { size: 14, fill: MUTED, family: "mono" }));
   return chunks.join("\n");
@@ -194,9 +197,8 @@ function decisionRow(decision: string): string {
   ].join("\n");
 }
 
-function footer(maskedCount: number): string {
-  const label = maskedCount > 0 ? `masked ×${maskedCount} · raw session never uploaded` : "raw session never uploaded";
-  return text(36, 436, label, { size: 13, fill: MUTED, family: "mono" });
+function footer(): string {
+  return text(36, 436, "redacted before posting · raw session never uploaded", { size: 13, fill: MUTED, family: "mono" });
 }
 
 function row(y: number, height: number): string {

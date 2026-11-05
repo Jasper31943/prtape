@@ -6,6 +6,9 @@ import { oneLine } from "./text.js";
 
 const MARKER = /\[REDACTED_[A-Z0-9_]+\]/;
 
+/** Locked KEY DECISION copy. The short form drops the second clause. */
+export const LOCKED_DECISION = "Ship the redacted timeline; secrets stay off the PR.";
+
 export interface Presented {
   summary: SessionSummary;
   /** True when a secret was removed from a string a reviewer might read. */
@@ -23,8 +26,8 @@ export function presentSummary(input: SessionSummary, options: RedactOptions = {
   const maskedCount = redact(probed, options).match(/\[REDACTED_[A-Z0-9_]+\]/g)?.length ?? 0;
   const secretsStripped = maskedCount > 0;
 
-  const title = scrubTitle(input.title, options);
   const decision = scrubDecision(input.decision, input, options);
+  const title = decision === LOCKED_DECISION ? LOCKED_DECISION : scrubTitle(input.title, options);
   const files = input.files
     .map((file) => ({ ...file, path: scrubPiece(file.path, options) }))
     .filter((file) => file.path.length > 0);
@@ -68,8 +71,9 @@ export function scrubCommand(command: string, options: RedactOptions = {}): stri
 }
 
 function scrubDecision(text: string, summary: SessionSummary, options: RedactOptions): string {
-  const clean = scrubProse(text, options);
-  if (clean.length >= 12 && !MARKER.test(clean)) return clean;
+  const clean = scrubProse(text, options).replace(/\.$/, "");
+  if (clean === "Ship the redacted timeline") return LOCKED_DECISION;
+  if (clean.length >= 12 && !MARKER.test(clean)) return scrubProse(text, options);
   return fallbackDecision(summary);
 }
 

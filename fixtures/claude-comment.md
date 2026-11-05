@@ -1,6 +1,6 @@
 ### AgentTape
 
-**Ship the redacted timeline.**
+**Ship the redacted timeline; secrets stay off the PR.**
 
 ```text
 ask ──▶ 3 files ──▶ tests pass ──▶ ship
@@ -22,12 +22,12 @@ flowchart LR
 <details>
 <summary>Steps</summary>
 
-1. **Ask** — Strip keys and internal hosts before posting.
+1. **Ask** — Ship the redacted timeline; secrets stay off the PR.
 2. **Edit** — `src/redact.ts`
 3. **Edit** — `src/timeline/svg.ts`
 4. **Write** — `README.md`
 5. **Test** — `npm test` · pass
-6. **Decision** — Ship the redacted timeline.
+6. **Decision** — Ship the redacted timeline; secrets stay off the PR.
 
 </details>
 

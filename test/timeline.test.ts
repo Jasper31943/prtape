@@ -37,6 +37,9 @@ describe("timeline snapshots", () => {
     assert.match(svg, /#39FF88/);
     assert.match(svg, /#22D3EE/);
     assert.match(svg, /#33445A/);
+    assert.match(svg, /Ship the redacted timeline; secrets stay off the PR\./);
+    assert.match(svg, /redacted before posting · raw session never uploaded/);
+    assert.doesNotMatch(svg, /masked ×\d+ · raw session/);
     assert.doesNotMatch(svg, /\[REDACTED|sk-•|10\.0\./);
     assert.doesNotMatch(comment, /\[REDACTED/);
     for (const block of svg.split("<text").slice(1)) {
