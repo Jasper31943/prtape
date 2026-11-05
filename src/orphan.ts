@@ -5,23 +5,29 @@ import path from "node:path";
 import type { CommandResult, CommandRunner } from "./gh.js";
 import { defaultRunner } from "./gh.js";
 import {
-  ORPHAN_BRANCH,
   glanceMissingGh,
   glanceNoOrigin,
   glancePushDenied,
   glancePushOther,
   glanceRepoUnreadable,
   glanceUnauth,
-  isMissingRef,
   isPermissionFailure,
+  orphanRef,
 } from "./glance.js";
 
 export const ORPHAN_FILE = "timeline.png";
+
+const ORPHAN_README = `# AgentTape
+
+This orphan ref stores one redacted timeline PNG for a pull-request comment.
+It is not on the default branch and it does not merge into main.
+`;
 
 export interface HostedPng {
   ok: true;
   url: string;
   sha: string;
+  ref: string;
   isPrivate: boolean;
 }
 
@@ -38,12 +44,13 @@ export interface GitResult {
   stderr: string;
 }
 
-export type GitRunner = (args: string[], cwd: string) => GitResult;
+export type GitRunner = (args: string[], cwd: string, input?: string) => GitResult;
 
-export function defaultGit(args: string[], cwd: string): GitResult {
+export function defaultGit(args: string[], cwd: string, input?: string): GitResult {
   const result = spawnSync("git", args, {
     cwd,
     encoding: "utf8",
+    input,
     env: { ...process.env, GIT_TERMINAL_PROMPT: "0" },
   });
   return {
@@ -62,9 +69,10 @@ export interface HostInput {
 }
 
 /**
- * Push `timeline.png` to the orphan branch `agenttape-media` and return a
- * `github.com/.../raw/<sha>/timeline.png` URL. The project working tree is
- * not modified. A failure is a glance string, never a thrown surprise.
+ * Build a parentless commit containing only the PNG and a tiny README, then
+ * push it to `refs/agenttape/<head-sha>`. The user's index, HEAD, branch, and
+ * working tree are not modified. The comment URL is
+ * `https://github.com/{owner}/{repo}/raw/{commit}/timeline.png`.
  */
 export async function hostTimelinePng(input: HostInput): Promise<HostResult> {
   const runner = input.runner ?? defaultRunner;
@@ -94,9 +102,11 @@ export async function hostTimelinePng(input: HostInput): Promise<HostResult> {
   const remoteUrl = remote.stdout.trim();
   if (remote.code !== 0 || !remoteUrl) return { ok: false, glance: glanceNoOrigin() };
 
+  const head = git(["rev-parse", "HEAD"], input.cwd).stdout.trim();
   const pushed = pushOrphanPng({
     remote: remoteUrl,
     png: input.png,
+    anchor: /^[0-9a-f]{7,64}$/i.test(head) ? head : undefined,
     git,
     tmpRoot: input.tmpRoot,
     useGhCredential: /^https:\/\/([^/]+\.)?github\.com\//i.test(remoteUrl),
@@ -106,66 +116,86 @@ export async function hostTimelinePng(input: HostInput): Promise<HostResult> {
   return {
     ok: true,
     sha: pushed.sha,
+    ref: pushed.ref,
     isPrivate: parsed.isPrivate === true,
-    url: `https://github.com/${parsed.nameWithOwner}/raw/${pushed.sha}/${ORPHAN_FILE}`,
+    url: rawPngUrl(parsed.nameWithOwner, pushed.sha),
   };
+}
+
+export function rawPngUrl(nameWithOwner: string, sha: string): string {
+  return `https://github.com/${nameWithOwner}/raw/${sha}/${ORPHAN_FILE}`;
 }
 
 export function pushOrphanPng(input: {
   remote: string;
   png: Buffer;
+  anchor?: string;
   git?: GitRunner;
   tmpRoot?: string;
   useGhCredential?: boolean;
-}): HostResult & { ok: true; sha: string } | HostFailure {
+}): (HostedPng) | HostFailure {
   const git = input.git ?? defaultGit;
   const tmp = fs.mkdtempSync(path.join(input.tmpRoot ?? os.tmpdir(), "agenttape-orphan-"));
-  const identity = gitIdentity(git, tmp);
+  const identity = gitIdentity(git);
 
-  const init = git(["init", "-b", ORPHAN_BRANCH], tmp);
+  const init = git(["init", "-q"], tmp);
   if (init.code !== 0) return { ok: false, glance: glancePushOther(init.stderr || init.stdout) };
   git(["config", "user.name", identity.name], tmp);
   git(["config", "user.email", identity.email], tmp);
 
+  const pngPath = path.join(tmp, ORPHAN_FILE);
+  const readmePath = path.join(tmp, "README.md");
+  fs.writeFileSync(pngPath, input.png, { mode: 0o600 });
+  fs.writeFileSync(readmePath, ORPHAN_README, { mode: 0o600 });
+
+  const pngBlob = git(["hash-object", "-w", pngPath], tmp).stdout.trim();
+  const readmeBlob = git(["hash-object", "-w", readmePath], tmp).stdout.trim();
+  if (!/^[0-9a-f]{40}$/i.test(pngBlob) || !/^[0-9a-f]{40}$/i.test(readmeBlob)) {
+    return { ok: false, glance: glancePushOther("git hash-object did not return a blob id.") };
+  }
+
+  const anchor = input.anchor && /^[0-9a-f]{7,64}$/i.test(input.anchor) ? input.anchor : pngBlob;
+  let ref: string;
+  try {
+    ref = orphanRef(anchor);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return { ok: false, glance: glancePushOther(message) };
+  }
+
+  const treeSpec = [`100644 blob ${readmeBlob}\tREADME.md`, `100644 blob ${pngBlob}\t${ORPHAN_FILE}`, ""].join("\n");
+  const tree = git(["mktree"], tmp, treeSpec);
+  const treeSha = tree.stdout.trim();
+  if (tree.code !== 0 || !/^[0-9a-f]{40}$/i.test(treeSha)) {
+    return { ok: false, glance: glancePushOther(tree.stderr || tree.stdout || "git mktree failed.") };
+  }
+
+  const commit = git(["commit-tree", treeSha, "-m", "AgentTape timeline"], tmp);
+  const commitSha = commit.stdout.trim();
+  if (commit.code !== 0 || !/^[0-9a-f]{40}$/i.test(commitSha)) {
+    return { ok: false, glance: glancePushOther(commit.stderr || commit.stdout || "git commit-tree failed.") };
+  }
+
   const added = git(["remote", "add", "origin", input.remote], tmp);
   if (added.code !== 0) return { ok: false, glance: glancePushOther(added.stderr || added.stdout) };
 
-  const fetch = git(["fetch", "origin", ORPHAN_BRANCH], tmp);
-  if (fetch.code !== 0) {
-    const text = `${fetch.stderr}\n${fetch.stdout}`;
-    if (!isMissingRef(text)) {
-      return { ok: false, glance: isPermissionFailure(text) ? glancePushDenied() : glancePushOther(text) };
-    }
-  } else {
-    const checkout = git(["checkout", "-B", ORPHAN_BRANCH, "FETCH_HEAD"], tmp);
-    if (checkout.code !== 0) return { ok: false, glance: glancePushOther(checkout.stderr || checkout.stdout) };
-  }
-
-  fs.writeFileSync(path.join(tmp, ORPHAN_FILE), input.png, { mode: 0o600 });
-  const add = git(["add", ORPHAN_FILE], tmp);
-  if (add.code !== 0) return { ok: false, glance: glancePushOther(add.stderr || add.stdout) };
-  const commit = git(["commit", "-m", "Add AgentTape timeline PNG"], tmp);
-  if (commit.code !== 0) {
-    const text = `${commit.stderr}\n${commit.stdout}`;
-    if (/nothing to commit/i.test(text)) {
-      const existing = git(["rev-parse", "HEAD"], tmp).stdout.trim();
-      if (existing) return { ok: true, sha: existing, url: "", isPrivate: false };
-    }
-    return { ok: false, glance: glancePushOther(text) };
-  }
-  const shaResult = git(["rev-parse", "HEAD"], tmp);
-  const sha = shaResult.stdout.trim();
-  if (shaResult.code !== 0 || !sha) return { ok: false, glance: glancePushOther(shaResult.stderr || "missing commit sha") };
-
-  const pushArgs = input.useGhCredential
-    ? ["-c", "credential.helper=", "-c", "credential.helper=!gh auth git-credential", "push", "origin", `HEAD:${ORPHAN_BRANCH}`]
-    : ["push", "origin", `HEAD:${ORPHAN_BRANCH}`];
-  const push = git(pushArgs, tmp);
+  const prefix = input.useGhCredential
+    ? ["-c", "credential.helper=", "-c", "credential.helper=!gh auth git-credential"]
+    : [];
+  // `+` forces only this refspec. The destination is refs/agenttape/*, never a branch.
+  const push = git([...prefix, "push", "origin", `+${commitSha}:${ref}`], tmp);
   if (push.code !== 0) {
     const text = `${push.stderr}\n${push.stdout}`;
     return { ok: false, glance: isPermissionFailure(text) ? glancePushDenied() : glancePushOther(text) };
   }
-  return { ok: true, sha, url: "", isPrivate: false };
+
+  return {
+    ok: true,
+    sha: commitSha,
+    ref,
+    url: "",
+    isPrivate: false,
+  };
 }
 
 function glanceForAuth(result: CommandResult): string | null {
@@ -175,9 +205,9 @@ function glanceForAuth(result: CommandResult): string | null {
   return glanceUnauth();
 }
 
-function gitIdentity(git: GitRunner, cwd: string): { name: string; email: string } {
-  const name = git(["config", "--global", "user.name"], cwd).stdout.trim();
-  const email = git(["config", "--global", "user.email"], cwd).stdout.trim();
+function gitIdentity(git: GitRunner): { name: string; email: string } {
+  const name = git(["config", "--global", "user.name"], os.tmpdir()).stdout.trim();
+  const email = git(["config", "--global", "user.email"], os.tmpdir()).stdout.trim();
   return {
     name: name || "AgentTape",
     email: email || "agenttape@localhost",

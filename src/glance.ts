@@ -3,7 +3,20 @@
  * These strings are the product contract. Do not shorten them into a bare exit code.
  */
 
-export const ORPHAN_BRANCH = "agenttape-media";
+/** Custom ref namespace. Never a branch under refs/heads, so it cannot merge into main. */
+export const ORPHAN_REF_PREFIX = "refs/agenttape";
+
+export function orphanRef(anchor: string): string {
+  const safe = anchor.replace(/[^A-Za-z0-9._-]/g, "").slice(0, 64);
+  if (!safe) {
+    throw new Error("Refusing to build an orphan ref without an anchor.");
+  }
+  const ref = `${ORPHAN_REF_PREFIX}/${safe}`;
+  if (!ref.startsWith(`${ORPHAN_REF_PREFIX}/`)) {
+    throw new Error(`Refusing to push outside ${ORPHAN_REF_PREFIX}/.`);
+  }
+  return ref;
+}
 
 export function glanceMissingGh(): string {
   return [
@@ -23,7 +36,7 @@ export function glanceUnauth(): string {
 
 export function glancePushDenied(): string {
   return [
-    `Image not posted: push to orphan branch ${ORPHAN_BRANCH} was denied.`,
+    `Image not posted: push to orphan ref ${ORPHAN_REF_PREFIX}/<sha> was denied.`,
     "Fix: give this account write access to the repo, then rerun `agenttape pr`.",
     "Fell back to the text timeline (ASCII + mermaid).",
   ].join("\n");
@@ -32,7 +45,7 @@ export function glancePushDenied(): string {
 export function glancePushOther(detail: string): string {
   const line = detail.trim().split("\n").find((item) => item.trim()) ?? "git push failed.";
   return [
-    `Image not posted: could not push the PNG to orphan branch ${ORPHAN_BRANCH}.`,
+    `Image not posted: could not push the PNG to orphan ref ${ORPHAN_REF_PREFIX}/<sha>.`,
     line,
     "Fix: run `gh auth status`, confirm you can push to origin, then rerun `agenttape pr`.",
     "Fell back to the text timeline (ASCII + mermaid).",
@@ -70,8 +83,4 @@ const PERMISSION =
 
 export function isPermissionFailure(text: string): boolean {
   return PERMISSION.test(text);
-}
-
-export function isMissingRef(text: string): boolean {
-  return /couldn't find remote ref|remote ref does not exist|no such ref|not our ref/i.test(text);
 }

@@ -11,46 +11,57 @@ npx agenttape pr --dry-run
 npx agenttape pr --json --dry-run
 ```
 
-Run it on the git branch that already has the pull request. AgentTape reads the newest Claude Code session for this directory (`~/.claude/projects/**/*.jsonl`), or `.aider.chat.history.md` when that file is newer. It posts a short comment: one-line decision, files touched, and whether tests ran. `--dry-run` prints that comment and does not call `gh`. A real run also tries to host `timeline.png` on the orphan branch `agenttape-media`. If `gh` is missing, not authenticated, or that push is denied, AgentTape prints what failed and how to fix it, then uses the text timeline. It does not claim an image was posted.
+Run it on the git branch that already has the pull request. One command, `npx agenttape pr`, reads the newest Claude Code or Aider session, posts a comment that leads with the timeline PNG, and does not ask you to upload anything yourself. `--dry-run` prints that comment and does not push or comment. If `gh` is missing, not authenticated, or the PNG push is denied, AgentTape prints what failed and how to fix it, then uses a text timeline instead. It does not claim an image was posted.
 
 From a checkout, before the package is on npm: `npx tsx src/cli.ts pr --dry-run`.
 
 ## What a reviewer sees
 
-The comment is markdown, because GitHub strips inline SVG:
+On the happy path the comment leads with the image, then the decision and a short table:
 
-```text
-ask ──▶ 3 files ──▶ tests pass ──▶ ship
-```
+```markdown
+![AgentTape timeline](https://github.com/<owner>/<repo>/raw/<sha>/timeline.png)
+
+**Ship the redacted timeline.**
 
 | | |
 | --- | --- |
-| Source | Claude Code · `feature/redact-timeline` |
-| Files touched | `src/redact.ts` · `src/timeline/svg.ts` · `README.md` |
+| Files touched | `src/redact.ts` · `src/timeline/svg.ts` |
 | Tests | yes · pass |
+```
 
-The SVG the CLI writes on the machine that ran it (this README image is in the repo, not the orphan-branch PNG):
+ASCII and mermaid appear only when the PNG was not pushed. The preview below is the SVG checked into this repo, not the orphan ref:
 
 ![AgentTape timeline preview](docs/preview.svg)
 
-The preview above is rendered from the synthetic fixture in `fixtures/`. Tokens in square brackets are redaction markers, not real secrets.
+Tokens in square brackets in the fixture render are redaction markers, not real secrets.
+
+## Orphan ref
+
+`agenttape pr` builds a parentless commit (PNG + a tiny README) with `git hash-object`, `git mktree`, and `git commit-tree` in a temp repository. It then runs:
+
+```text
+git push origin +<commit>:refs/agenttape/<head>
+```
+
+`<head>` is the SHA already on your branch. The new commit has no parent, and the destination is `refs/agenttape/…`, not `refs/heads/…`, so it cannot merge into main and it is not your PR branch. The push does not update your index or working tree, and it does not create `.agenttape/`.
+
+The comment image is exactly:
+
+```text
+https://github.com/<owner>/<repo>/raw/<commit>/timeline.png
+```
+
+`<commit>` is the orphan commit that contains the PNG, not `raw.githubusercontent.com`. On a **public** repo, a logged-out viewer loading that `github.com/.../raw/<sha>/...` URL sees the image.
 
 ## Who can see the PNG
 
-A real `agenttape pr` pushes `timeline.png` to the orphan branch `agenttape-media` and links it from the pull-request comment:
-
-```text
-https://github.com/<owner>/<repo>/raw/<sha>/timeline.png
-```
-
-That push does not change your branch and does not write into the working tree. The comment still includes the ASCII and mermaid timeline.
-
 Visibility is not the same on public and private repos.
 
-- **Public repo.** Anonymous viewers see the PNG. GitHub serves it from `github.com/.../raw/<sha>/...`.
-- **Private repo.** Logged-out users, email notifications, and some mobile clients may show a broken image. Collaborators who can open the repo usually see it. Do not expect the public-repo experience.
+- **Public repo.** Anonymous viewers see the PNG at `github.com/.../raw/<sha>/...`.
+- **Private repo.** Logged-out users, email notifications, and some mobile clients may show a broken image. Collaborators who can open the repo usually see it.
 
-If `gh` is missing or not logged in, or the orphan push lacks permission, the command prints a one-glance error (what failed, and the fix) and posts or prints the text timeline only. The comment then has no image URL.
+If `gh` is missing or not logged in, or the push to `refs/agenttape/…` is denied, the command prints a one-glance error (what failed, and the fix) and posts or prints the text timeline only. That comment has no image URL.
 
 ## Demo
 
@@ -114,7 +125,7 @@ npx agenttape pr
 npx agenttape pr --dry-run
 ```
 
-原始工作階段不會寫進專案目錄。公開倉庫的匿名讀者看得到 `github.com/.../raw/<sha>/...` 上的 PNG；私人倉庫則不同，未登入、郵件通知與部分手機客戶端可能只看到破圖，有權限的協作者通常看得到。Cursor 支援與 Claude Code `SessionEnd` hook 留到 v0.2。
+原始工作階段不會寫進專案目錄。PNG 放在 `refs/agenttape/<head>`，不會進 main。公開倉庫的未登入讀者也看得到 `github.com/.../raw/<sha>/timeline.png`；私人倉庫則不同，未登入、郵件通知與部分手機客戶端可能只看到破圖，有權限的協作者通常看得到。Cursor 支援與 Claude Code `SessionEnd` hook 留到 v0.2。
 
 ## License
 

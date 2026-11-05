@@ -30,13 +30,13 @@ describe("cli", () => {
     const session = path.join(root, "fixtures", "claude-session.jsonl");
     const result = run(["pr", "--dry-run", "--session", session, "--cwd", cwd], cwd);
     assert.equal(result.status, 0, result.stderr);
-    assert.match(result.stdout, /### AgentTape/);
-    assert.match(result.stdout, /ask ──▶ 3 files ──▶ tests pass ──▶ ship/);
+    assert.match(result.stdout, /Ship the redacted timeline/);
     assert.match(result.stderr, /dry-run/);
     assert.match(result.stderr, /SVG: /);
     assert.match(result.stderr, /PNG: /);
-    assert.match(result.stdout, /```mermaid/);
-    assert.equal(/github\.com\/.+\/raw\//.test(result.stdout), false);
+    assert.match(result.stdout, /^!\[AgentTape timeline\]\(file:\/\//);
+    assert.doesNotMatch(result.stdout, /```mermaid/);
+    assert.doesNotMatch(result.stdout, /https:\/\/github\.com\/[^/\s]+\/[^/\s]+\/raw\/[0-9a-f]{7,64}\//);
     const svgPath = /SVG: (.+)/.exec(result.stderr)?.[1]?.trim();
     const pngPath = /PNG: (.+)/.exec(result.stderr)?.[1]?.trim();
     assert.ok(svgPath);

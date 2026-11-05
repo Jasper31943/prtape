@@ -68,7 +68,13 @@ describe("gh", () => {
       redactEmails: false,
       tmpDir,
       runner,
-      hostImage: async () => ({ ok: true, url: imageUrl, sha: "abc123def", isPrivate: false }),
+      hostImage: async () => ({
+        ok: true,
+        url: imageUrl,
+        sha: "abc123def",
+        ref: "refs/agenttape/abc123def",
+        isPrivate: false,
+      }),
     });
     assert.equal(posted.posted, true);
     assert.equal(posted.imageHosted, true);
@@ -76,9 +82,11 @@ describe("gh", () => {
     const commentCall = calls.find((call) => call.args[1] === "comment");
     assert.ok(commentCall);
     assert.equal(commentCall?.args.includes("--body-file"), true);
-    assert.match(commentCall?.input ?? "", /### AgentTape/);
+    assert.match(commentCall?.input ?? "", /^!\[AgentTape timeline\]\(https:\/\/github\.com\/acme\/demo\/raw\/abc123def\/timeline\.png\)/);
     assert.match(commentCall?.input ?? "", /github\.com\/acme\/demo\/raw\/abc123def\/timeline\.png/);
-    assert.match(commentCall?.input ?? "", /```mermaid/);
+    assert.doesNotMatch(commentCall?.input ?? "", /```mermaid/);
+    assert.doesNotMatch(commentCall?.input ?? "", /ask ──▶/);
+    assert.match(commentCall?.input ?? "", /\*\*Ship the redacted timeline/);
     assert.match(commentCall?.input ?? "", /private repo/i);
     assert.match(posted.note, /hosted PNG/);
     for (const canary of SECRET_CANARIES) {
@@ -113,7 +121,7 @@ describe("gh", () => {
       hostImage: async () => ({
         ok: false,
         glance: [
-          "Image not posted: push to orphan branch agenttape-media was denied.",
+          "Image not posted: push to orphan ref refs/agenttape/<sha> was denied.",
           "Fix: give this account write access to the repo, then rerun `agenttape pr`.",
           "Fell back to the text timeline (ASCII + mermaid).",
         ].join("\n"),

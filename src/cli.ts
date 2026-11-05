@@ -41,12 +41,11 @@ Examples:
   agenttape pr --json --dry-run
   agenttape pr --session fixtures/claude-session.jsonl --dry-run
 
-A real run pushes timeline.png to the orphan branch agenttape-media and
-links github.com/.../raw/<sha>/timeline.png. If gh is missing, not
-authenticated, or that push is denied, AgentTape prints what failed and how
-to fix it, then uses the text timeline (ASCII + mermaid). It does not claim
-an image was posted. SVG and PNG files are written under the system temp
-directory, never into the repository.
+A real run pushes timeline.png to the orphan ref refs/agenttape/<head> and
+the comment leads with github.com/.../raw/<sha>/timeline.png. That ref is not
+your branch. If gh is missing, not authenticated, or the push is denied,
+AgentTape prints what failed and how to fix it, then uses the text timeline.
+--dry-run writes the PNG locally and does not push or comment.
 `;
 
 async function main(argv: string[]): Promise<number> {

@@ -4,57 +4,87 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { describe, it } from "node:test";
-import { glancePushDenied, isPermissionFailure } from "../src/glance.js";
+import { glancePushDenied, isPermissionFailure, orphanRef } from "../src/glance.js";
 import { ORPHAN_FILE, pushOrphanPng } from "../src/orphan.js";
 import { renderComment } from "../src/timeline/md.js";
 import { parseClaude } from "../src/adapters/claude.js";
 import { fixture } from "./helpers.js";
 
-describe("orphan PNG branch", () => {
+describe("orphan PNG ref", () => {
   it("names the permission failure and the fix in one glance", () => {
     const glance = glancePushDenied();
     assert.match(glance, /Image not posted/);
-    assert.match(glance, /agenttape-media/);
+    assert.match(glance, /refs\/agenttape\/<sha>/);
     assert.match(glance, /Fix:/);
     assert.match(glance, /write access/);
     assert.match(glance, /ASCII \+ mermaid/);
     assert.equal(isPermissionFailure("remote: Permission to acme/demo.git denied to octocat."), true);
-    assert.equal(isPermissionFailure("fatal: couldn't find remote ref agenttape-media"), false);
+    assert.equal(orphanRef("abc123def"), "refs/agenttape/abc123def");
   });
 
-  it("pushes timeline.png onto an orphan branch without touching the project", () => {
+  it("pushes a parentless commit to refs/agenttape/<head> and leaves the project untouched", () => {
     const project = fs.mkdtempSync(path.join(os.tmpdir(), "agenttape-proj-"));
     const bare = fs.mkdtempSync(path.join(os.tmpdir(), "agenttape-bare-"));
     git(bare, ["init", "--bare"]);
-    const before = fs.readdirSync(project);
-    const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00]);
-    const first = pushOrphanPng({ remote: bare, png, tmpRoot: os.tmpdir() });
+    git(project, ["init", "-b", "main"]);
+    git(project, ["config", "user.email", "agenttape@localhost"]);
+    git(project, ["config", "user.name", "AgentTape"]);
+    fs.writeFileSync(path.join(project, "README.md"), "project\n");
+    git(project, ["add", "README.md"]);
+    git(project, ["commit", "-m", "init"]);
+    const head = git(project, ["rev-parse", "HEAD"]).trim();
+    const statusBefore = git(project, ["status", "--porcelain"]);
+    const refsBefore = git(project, ["for-each-ref"]);
+
+    const first = pushOrphanPng({
+      remote: bare,
+      png: Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00]),
+      anchor: head,
+      tmpRoot: os.tmpdir(),
+    });
     assert.equal(first.ok, true, "glance" in first ? first.glance : "");
     if (!first.ok) return;
+    assert.equal(first.ref, `refs/agenttape/${head}`);
+    assert.throws(() => git(bare, ["rev-parse", "--verify", `${first.sha}^`]));
+    assert.match(git(bare, ["ls-tree", "--name-only", first.sha]), new RegExp(ORPHAN_FILE));
+    assert.match(git(bare, ["ls-tree", "--name-only", first.sha]), /README\.md/);
+    assert.equal(git(bare, ["rev-parse", first.ref]).trim(), first.sha);
+    assert.equal(git(bare, ["for-each-ref", "--format=%(refname)", "refs/heads"]).includes("agenttape"), false);
+
     const second = pushOrphanPng({
       remote: bare,
       png: Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x01]),
+      anchor: head,
       tmpRoot: os.tmpdir(),
     });
     assert.equal(second.ok, true, "glance" in second ? second.glance : "");
     if (!second.ok) return;
     assert.notEqual(first.sha, second.sha);
-    const shown = git(bare, ["ls-tree", "--name-only", second.sha]);
-    assert.match(shown, new RegExp(ORPHAN_FILE));
-    assert.deepEqual(fs.readdirSync(project), before);
+    assert.equal(git(bare, ["rev-parse", second.ref]).trim(), second.sha);
+
+    assert.equal(git(project, ["rev-parse", "HEAD"]).trim(), head);
+    assert.equal(git(project, ["status", "--porcelain"]), statusBefore);
+    assert.equal(git(project, ["for-each-ref"]), refsBefore);
     assert.equal(fs.existsSync(path.join(project, ".agenttape")), false);
   });
 
-  it("puts the raw URL and both visibility cases on an image comment", () => {
+  it("leads the hosted comment with the raw image and keeps ASCII for the fallback only", () => {
     const summary = parseClaude(fixture("claude-session.jsonl"), "claude-session.jsonl");
     const url = "https://github.com/acme/demo/raw/abc123def/timeline.png";
-    const comment = renderComment(summary, {}, { url, isPrivate: true });
-    assert.match(comment, /github\.com\/acme\/demo\/raw\/abc123def\/timeline\.png/);
+    const comment = renderComment(summary, {}, { url, isPrivate: false });
+    assert.match(comment, /^!\[AgentTape timeline\]\(https:\/\/github\.com\/acme\/demo\/raw\/abc123def\/timeline\.png\)/);
     assert.match(comment, /public repo/i);
     assert.match(comment, /private repo/i);
     assert.match(comment, /logged-out users, email notifications, and some mobile clients/);
-    assert.match(comment, /```mermaid/);
-    assert.match(comment, /ask ──▶ 3 files ──▶ tests pass ──▶ ship/);
+    assert.match(comment, /\*\*Ship the redacted timeline/);
+    assert.doesNotMatch(comment, /```mermaid/);
+    assert.doesNotMatch(comment, /ask ──▶/);
+    assert.doesNotMatch(comment, /raw\.githubusercontent\.com/);
+
+    const fallback = renderComment(summary);
+    assert.match(fallback, /```mermaid/);
+    assert.match(fallback, /ask ──▶ 3 files ──▶ tests pass ──▶ ship/);
+    assert.doesNotMatch(fallback, /!\[AgentTape timeline\]/);
   });
 });
 

@@ -103,7 +103,9 @@ export async function runPr(options: RunOptions): Promise<RunResult> {
   if (options.dryRun) {
     return {
       summary: redacted,
-      comment: renderComment(redacted, redactOptions),
+      comment: pngPath
+        ? renderComment(redacted, redactOptions, { url: fileUrl(pngPath), isPrivate: false, dryRun: true })
+        : renderComment(redacted, redactOptions),
       svg,
       svgPath,
       pngPath,
@@ -112,9 +114,9 @@ export async function runPr(options: RunOptions): Promise<RunResult> {
       sessionNote: found.note,
       origin: found.path,
       note: [
-        "AgentTape dry-run. Nothing was posted.",
-        "The PNG was not uploaded. A real run pushes it to orphan branch agenttape-media and links github.com/.../raw/<sha>/timeline.png.",
-        "If gh is missing, unauthenticated, or that push is denied, the text timeline below is the comment.",
+        "AgentTape dry-run. Nothing was posted and nothing was pushed.",
+        "A real run pushes the PNG to refs/agenttape/<head> and the comment leads with https://github.com/{owner}/{repo}/raw/{sha}/timeline.png.",
+        "Logged-out viewers see that image on a public repo. On a private repo they may not.",
       ].join("\n"),
     };
   }
@@ -160,7 +162,7 @@ export async function runPr(options: RunOptions): Promise<RunResult> {
   } catch (error) {
     const reason = error instanceof GhError ? error.message : "Could not post the comment.";
     const imageLine = hosted.ok
-      ? `The PNG is on orphan branch agenttape-media at ${hosted.url}, but the comment was not posted.`
+      ? `The PNG is on ${hosted.ref} at ${hosted.url}, but the comment was not posted.`
       : hosted.glance;
     return { ...base, posted: false, note: `${imageLine}\n${reason} Nothing was posted.` };
   }
@@ -256,6 +258,11 @@ export function assertNotInsideProject(target: string, cwd: string): void {
   if (inside) {
     throw new Error(`Refusing to write the timeline inside the project tree (${file}).`);
   }
+}
+
+function fileUrl(filePath: string): string {
+  const absolute = path.resolve(filePath);
+  return `file://${absolute.split(path.sep).join("/")}`;
 }
 
 function gitBranch(cwd: string): string | undefined {

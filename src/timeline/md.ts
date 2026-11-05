@@ -16,15 +16,16 @@ import { rollupTests } from "../summary.js";
 export interface CommentImage {
   url: string;
   isPrivate: boolean;
+  /** Local file:// preview. Nothing was uploaded. */
+  dryRun?: boolean;
 }
 
 /**
  * Pull-request comment body.
  *
- * GitHub strips inline SVG. When a PNG was pushed to the orphan branch, the
- * comment leads with that `github.com/.../raw/<sha>/...` image and still keeps
- * the ASCII and mermaid timeline, because a private repo does not show the
- * image to everyone. Without a hosted PNG, the comment is the text timeline only.
+ * The happy path leads with the hosted PNG (`github.com/.../raw/<sha>/timeline.png`),
+ * then the one-line decision and a short table. Mermaid and ASCII are the
+ * fallback when the orphan ref was not pushed.
  */
 export function renderComment(
   input: SessionSummary,
@@ -47,43 +48,61 @@ export function renderComment(
       ? "none"
       : `${fileNames.join(" · ")}${extraFiles > 0 ? ` · +${extraFiles}` : ""}`;
 
-  const lines = [
-    "### AgentTape",
-    "",
-    `**${escapeMdCell(decision)}**`,
-    "",
-    ...(image ? imageBlock(image) : []),
-    "```text",
-    asciiFlow(summary),
-    "```",
-    "",
+  const table = [
     "| | |",
     "| --- | --- |",
     `| Source | ${escapeMdCell(sourceBits.join(" · "))} |`,
     `| Files touched | ${escapeMdCell(files)} |`,
     `| Tests | ${escapeMdCell(testsCell(summary))} |`,
-    "",
-    "```mermaid",
-    mermaid(summary),
-    "```",
-    "",
-    "<details>",
-    "<summary>Steps</summary>",
-    "",
-    ...summary.steps.map((step, index) => `${index + 1}. ${stepText(step)}`),
-    "",
-    "</details>",
-    "",
-    image
-      ? `_Redacted locally by AgentTape ${VERSION}. The raw session was not posted._`
-      : `_Redacted locally by AgentTape ${VERSION}. The raw session was not posted. This is the text timeline (ASCII + mermaid). GitHub strips inline SVG._`,
-    "",
   ];
+  const footer = `_Redacted locally by AgentTape ${VERSION}. The raw session was not posted._`;
+  const lines = image
+    ? [
+        `![AgentTape timeline](${image.url})`,
+        "",
+        `**${escapeMdCell(decision)}**`,
+        "",
+        ...table,
+        "",
+        image.dryRun ? dryRunNote() : visibilityNote(image.isPrivate),
+        "",
+        footer,
+        "",
+      ]
+    : [
+        "### AgentTape",
+        "",
+        `**${escapeMdCell(decision)}**`,
+        "",
+        "```text",
+        asciiFlow(summary),
+        "```",
+        "",
+        ...table,
+        "",
+        "```mermaid",
+        mermaid(summary),
+        "```",
+        "",
+        "<details>",
+        "<summary>Steps</summary>",
+        "",
+        ...summary.steps.map((step, index) => `${index + 1}. ${stepText(step)}`),
+        "",
+        "</details>",
+        "",
+        `_Redacted locally by AgentTape ${VERSION}. The raw session was not posted. This is the text timeline (ASCII + mermaid). GitHub strips inline SVG._`,
+        "",
+      ];
   return lines.join("\n");
 }
 
-function imageBlock(image: CommentImage): string[] {
-  return [`![AgentTape timeline](${image.url})`, "", visibilityNote(image.isPrivate), ""];
+function dryRunNote(): string {
+  return [
+    "_Dry run. This file:// image was not uploaded and no comment was posted._",
+    "_A real `agenttape pr` pushes the PNG to the orphan ref `refs/agenttape/<head>` and the comment leads with `https://github.com/{owner}/{repo}/raw/{sha}/timeline.png`._",
+    "_On a public repo, logged-out viewers see that image. On a private repo they may not; collaborators who can open the repo usually see it._",
+  ].join(" ");
 }
 
 function visibilityNote(isPrivate: boolean): string {
