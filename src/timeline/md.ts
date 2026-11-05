@@ -1,7 +1,7 @@
 import type { SessionSummary } from "../types.js";
 import type { RedactOptions } from "../redact.js";
-import { redactSession } from "../redact.js";
 import { VERSION } from "../version.js";
+import { presentSummary } from "../display.js";
 import { escapeMdCell, oneLine } from "../text.js";
 import {
   asciiFlow,
@@ -32,7 +32,7 @@ export function renderComment(
   options: RedactOptions = {},
   image?: CommentImage,
 ): string {
-  const summary = redactSession(input, options);
+  const summary = presentSummary(input, options).summary;
   const decision = decisionLine(summary, 200);
   const when = formatWhen(summary.startedAt);
   const sourceBits = [
@@ -116,7 +116,7 @@ function visibilityNote(isPrivate: boolean): string {
 }
 
 function testsCell(summary: SessionSummary): string {
-  const phrase = testsPhrase(summary, "table");
+  const phrase = testsPhrase(summary);
   if (!summary.testsRun) return phrase;
   const parts = phrase.split(" · ");
   if (parts.length < 3) return phrase;

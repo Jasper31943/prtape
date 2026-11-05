@@ -79,7 +79,7 @@ On by default, before anything is rendered or posted:
 | Private IPv4 (`10/8`, `172.16/12`, `192.168/16`) and link-local | `[REDACTED_IP]` |
 | Hostnames ending in `.internal` or `.local` | `[REDACTED_HOST]` |
 
-Emails are kept unless you pass `--redact-emails`. This is prefix matching, not a secret scanner. A novel credential that does not match these shapes can still slip through.
+Those spans are dropped from the pull-request comment, the timeline image, and the JSON fields a reviewer would read. The card does not print `[REDACTED_*]` or dotted stand-ins like `sk-••••`. Emails are left out of the title. `--redact-emails` also drops them from the rest of the summary. This is prefix matching, not a secret scanner.
 
 ## Adapters
 

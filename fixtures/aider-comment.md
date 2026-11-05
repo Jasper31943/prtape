@@ -1,6 +1,6 @@
 ### AgentTape
 
-**Ship the redacted timeline. Do not print [REDACTED_GITHUB_TOKEN].**
+**Ship the redacted timeline.**
 
 ```text
 ask ──▶ 1 file ──▶ tests pass ──▶ ship
@@ -10,7 +10,7 @@ ask ──▶ 1 file ──▶ tests pass ──▶ ship
 | --- | --- |
 | Source | Aider · 2026-11-01 15:04 |
 | Files touched | `src/redact.ts` |
-| Tests | yes · pass · `npm test` |
+| Tests | npm test · pass |
 
 ```mermaid
 flowchart LR
@@ -25,7 +25,7 @@ flowchart LR
 1. **Ask** — Strip secrets before posting the timeline.
 2. **Edit** — `src/redact.ts`
 3. **Test** — `npm test` · pass
-4. **Decision** — Ship the redacted timeline. Do not print [REDACTED_GITHUB_TOKEN].
+4. **Decision** — Ship the redacted timeline.
 
 </details>
 

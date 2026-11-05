@@ -1,173 +1,214 @@
 import type { SessionSummary } from "../types.js";
 import type { RedactOptions } from "../redact.js";
-import { redactSession } from "../redact.js";
+import { presentSummary } from "../display.js";
 import { escapeXml } from "../text.js";
-import {
-  askLine,
-  decisionLine,
-  filesDetail,
-  footerLine,
-  formatWhen,
-  sourceLabel,
-  testsPhrase,
-} from "./format.js";
+import { rollupTests } from "../summary.js";
+import { sourceLabel, testsPhrase } from "./format.js";
 
-const WIDTH = 760;
-const HEIGHT = 360;
+const WIDTH = 960;
+const HEIGHT = 480;
 
-/** Titles. Fallbacks match the brand palette. */
-const SANS = "Inter, 'SF Mono', Menlo, Consolas, 'DejaVu Sans Mono', sans-serif";
-/** Paths, commands, and labels. */
 const MONO = "JetBrains Mono, 'SF Mono', Menlo, Consolas, 'DejaVu Sans Mono', monospace";
+const SANS = "Inter, 'SF Mono', Menlo, Consolas, 'DejaVu Sans Mono', sans-serif";
 
 const BG = "#0B0F14";
-const SURFACE = "#131A22";
-const SURFACE2 = "#1B2430";
-const LINE = "#263241";
+const CARD = "#101820";
+const ROW = "#17212C";
+const TRACK = "#1B2430";
 const INK = "#E6EDF3";
 const MUTED = "#7D8A99";
 const ACCENT = "#39FF88";
 const ACCENT2 = "#22D3EE";
 const ADD = "#3DDC84";
 const REMOVE = "#FF5C7A";
-const WARN = "#FFB454";
+const READ = "#33445A";
+const CHIP = "#0F2A1D";
 
-interface Row {
-  label: string;
-  detail: string;
-  color: string;
-  mono: boolean;
-}
+const BEATS: { label: string; color: string }[] = [
+  { label: "read", color: READ },
+  { label: "edit", color: ACCENT2 },
+  { label: "fail", color: REMOVE },
+  { label: "fix", color: ACCENT2 },
+  { label: "pass", color: ADD },
+  { label: "commit", color: ACCENT },
+];
 
 /**
- * Compact dark timeline.
- *
- * Brand rules baked in: the reel ring is the only gradient (accent → accent2
- * at 135°), and the REDACTED badge is the only element that glows. Pass uses
- * `add`, fail uses `remove`. Muted text stays at 13px or larger.
- * GitHub strips inline SVG, so the pull-request comment is markdown and this
- * file is written under the system temp directory.
+ * 960×480 PR timeline. Six-segment horizontal track, then FILES / TESTS /
+ * KEY DECISION. Secrets are omitted, not masked in the body or the footer.
  */
 export function renderSvg(input: SessionSummary, options: RedactOptions = {}): string {
-  const summary = redactSession(input, options);
-  const rows = timelineRows(summary);
-  const metaBits = [summary.branch, formatWhen(summary.startedAt)].filter(
-    (bit): bit is string => Boolean(bit),
-  );
-  const meta = metaBits.join("   ·   ") || "redacted";
+  const { summary, maskedCount } = presentSummary(input, options);
+  const active = activeBeats(summary);
   const source = sourceLabel(summary.source);
-  const decision = decisionLine(summary, 90);
-  const title = `AgentTape timeline · ${source}`;
-
-  const badgeW = 104;
-  const badgeX = 628;
-  const sourceW = Math.max(92, source.length * 8 + 22);
-  const sourceX = badgeX - 10 - sourceW;
-
-  const rowY = [132, 180, 228, 276];
   const parts: string[] = [];
   parts.push(`<?xml version="1.0" encoding="UTF-8"?>`);
   parts.push(
     `<svg xmlns="http://www.w3.org/2000/svg" width="${WIDTH}" height="${HEIGHT}" viewBox="0 0 ${WIDTH} ${HEIGHT}" role="img">`,
   );
-  parts.push(`  <title>${escapeXml(title)}</title>`);
-  parts.push(`  <desc>${escapeXml(decision)}</desc>`);
+  parts.push(`  <title>${escapeXml(`AgentTape timeline · ${source}`)}</title>`);
+  parts.push(`  <desc>${escapeXml(summary.decision)}</desc>`);
   parts.push(`  <defs>`);
   parts.push(`    <linearGradient id="reel" x1="0" y1="0" x2="1" y2="1">`);
   parts.push(`      <stop offset="0" stop-color="${ACCENT}"/>`);
   parts.push(`      <stop offset="1" stop-color="${ACCENT2}"/>`);
   parts.push(`    </linearGradient>`);
-  parts.push(
-    `    <filter id="accent-glow" x="-50%" y="-80%" width="200%" height="260%" color-interpolation-filters="sRGB">`,
-  );
-  parts.push(`      <feGaussianBlur stdDeviation="2.4" result="blur"/>`);
-  parts.push(`      <feMerge>`);
-  parts.push(`        <feMergeNode in="blur"/>`);
-  parts.push(`        <feMergeNode in="SourceGraphic"/>`);
-  parts.push(`      </feMerge>`);
-  parts.push(`    </filter>`);
+  parts.push(`    <pattern id="idle" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">`);
+  parts.push(`      <rect width="6" height="6" fill="${CARD}"/>`);
+  parts.push(`      <line x1="0" y1="0" x2="0" y2="6" stroke="#263241" stroke-width="2"/>`);
+  parts.push(`    </pattern>`);
   parts.push(`  </defs>`);
   parts.push(`  <rect width="${WIDTH}" height="${HEIGHT}" rx="18" fill="${BG}"/>`);
-  parts.push(`  <rect x="16" y="16" width="728" height="328" rx="12" fill="${SURFACE}" stroke="${LINE}"/>`);
-  parts.push(reel(40, 48));
-  parts.push(text(60, 54, "AgentTape", { size: 18, fill: INK, family: "sans", weight: 800 }));
-  parts.push(text(40, 78, meta, { size: 13, fill: MUTED, family: "mono" }));
-  parts.push(capsule(sourceX, 36, sourceW, 24, source));
-  parts.push(redactedBadge(badgeX, 36, badgeW, 24));
-  parts.push(`  <line x1="40" y1="100" x2="720" y2="100" stroke="${LINE}"/>`);
-  parts.push(
-    `  <line x1="48" y1="${rowY[0]}" x2="48" y2="${rowY[rowY.length - 1]}" stroke="${LINE}" stroke-width="2"/>`,
-  );
-  rows.forEach((row, index) => {
-    const y = rowY[index] ?? 132;
-    parts.push(`  <circle cx="48" cy="${y}" r="7" fill="${SURFACE}"/>`);
-    parts.push(`  <circle cx="48" cy="${y}" r="4" fill="${row.color}"/>`);
-    parts.push(text(72, y + 4, row.label, { size: 13, fill: MUTED, family: "mono", spacing: "1.1" }));
-    parts.push(
-      text(150, y + 4, row.detail, {
-        size: row.mono ? 14 : 15,
-        fill: INK,
-        family: row.mono ? "mono" : "sans",
-      }),
-    );
-  });
-  parts.push(text(72, 322, footerLine(summary), { size: 13, fill: MUTED, family: "mono" }));
+  parts.push(`  <rect x="16" y="16" width="928" height="448" rx="14" fill="${CARD}" stroke="${ACCENT}" stroke-width="1.5"/>`);
+  parts.push(reelMark(32, 30, 28));
+  parts.push(wordmark(68, 50));
+  parts.push(chips(source, maskedCount));
+  parts.push(track(active));
+  parts.push(filesRow(summary));
+  parts.push(testsRow(summary));
+  parts.push(decisionRow(summary.decision));
+  parts.push(footer(maskedCount));
   parts.push(`</svg>`);
   parts.push("");
   return parts.join("\n");
 }
 
-/** Outer ring is the only gradient in the image. It does not glow. */
-function reel(cx: number, cy: number): string {
-  return [
-    `  <circle cx="${cx}" cy="${cy}" r="12" fill="${SURFACE}" stroke="url(#reel)" stroke-width="2.5"/>`,
-    `  <circle cx="${cx}" cy="${cy}" r="3.5" fill="${SURFACE2}"/>`,
-  ].join("\n");
+function activeBeats(summary: SessionSummary): Set<string> {
+  const on = new Set<string>(["read", "commit"]);
+  if (summary.files.length > 0) on.add("edit");
+  const failed = summary.tests.some((test) => test.outcome === "fail");
+  const passed = summary.tests.some((test) => test.outcome === "pass");
+  if (failed) on.add("fail");
+  if (failed && (passed || summary.files.length > 0)) on.add("fix");
+  if (passed) on.add("pass");
+  return on;
 }
 
-function capsule(x: number, y: number, width: number, height: number, label: string): string {
-  const tx = x + width / 2;
-  const ty = y + height / 2 + 4;
+/** Brand reel from the logo mark, scaled. The ring is the only gradient. */
+function reelMark(x: number, y: number, size: number): string {
+  const scale = (size / 128).toFixed(4);
   return [
-    `  <rect x="${x}" y="${y}" width="${width}" height="${height}" rx="12" fill="${SURFACE2}" stroke="${LINE}"/>`,
-    text(tx, ty, label, { size: 13, fill: INK, family: "mono", anchor: "middle" }),
-  ].join("\n");
-}
-
-/** The only accent glow. Dark text sits on the green pill. */
-function redactedBadge(x: number, y: number, width: number, height: number): string {
-  const tx = x + width / 2;
-  const ty = y + height / 2 + 4;
-  return [
-    `  <g filter="url(#accent-glow)">`,
-    `    <rect x="${x}" y="${y}" width="${width}" height="${height}" rx="12" fill="${ACCENT}"/>`,
-    text(tx, ty, "REDACTED", { size: 12, fill: BG, family: "mono", weight: 700, anchor: "middle" }),
+    `  <g transform="translate(${x} ${y}) scale(${scale})">`,
+    `    <g transform="translate(0 6)">`,
+    `      <path d="M112 91 H52 A33 33 0 1 1 52 25 A33 33 0 1 1 52 91" fill="none" stroke="url(#reel)" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>`,
+    `      <polyline points="41,46 57,58 41,70" fill="none" stroke="${ACCENT2}" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>`,
+    `      <rect x="62" y="68" width="14" height="6" rx="1.5" fill="${ACCENT}"/>`,
+    `      <circle cx="82" cy="91" r="5.5" fill="${ACCENT}" stroke="${BG}" stroke-width="3"/>`,
+    `      <circle cx="102" cy="91" r="5.5" fill="${REMOVE}" stroke="${BG}" stroke-width="3"/>`,
+    `    </g>`,
     `  </g>`,
   ].join("\n");
 }
 
-function timelineRows(summary: SessionSummary): Row[] {
-  const outcome = testsPhrase(summary, "svg");
-  let testColor: string = MUTED;
-  if (summary.testsRun) {
-    if (outcome.startsWith("yes · pass")) testColor = ADD;
-    else if (outcome.startsWith("yes · fail")) testColor = REMOVE;
-    else testColor = WARN;
-  }
+function wordmark(x: number, y: number): string {
   return [
-    { label: "ASK", detail: askLine(summary, 72), color: ACCENT2, mono: false },
-    {
-      label: "FILES",
-      detail: truncateDetail(filesDetail(summary, 3), 64),
-      color: summary.files.length > 0 ? ACCENT2 : MUTED,
-      mono: true,
-    },
-    { label: "TESTS", detail: truncateDetail(outcome, 68), color: testColor, mono: true },
-    { label: "SHIP", detail: decisionLine(summary, 70), color: INK, mono: false },
-  ];
+    `  <text x="${x}" y="${y}" font-family="${MONO}" font-size="20" font-weight="800">`,
+    `    <tspan fill="${INK}">Agent</tspan><tspan fill="${ACCENT}">Tape</tspan>`,
+    `    <tspan fill="${MUTED}" font-size="14" font-weight="400"> · agent replay</tspan>`,
+    `  </text>`,
+  ].join("\n");
 }
 
-function truncateDetail(value: string, max: number): string {
+function chips(source: string, maskedCount: number): string {
+  const masked = maskedCount > 0 ? `masked ×${maskedCount}` : "";
+  const maskedW = masked ? Math.max(108, masked.length * 8 + 22) : 0;
+  const sourceW = Math.max(108, source.length * 8.2 + 24);
+  const right = 928;
+  const maskedX = right - maskedW;
+  const sourceX = (masked ? maskedX : right) - 8 - sourceW;
+  const chunks = [
+    `  <rect x="${sourceX}" y="34" width="${sourceW}" height="28" rx="14" fill="${TRACK}" stroke="#263241"/>`,
+    text(sourceX + sourceW / 2, 53, source, { size: 13, fill: INK, family: "mono", anchor: "middle" }),
+  ];
+  if (masked) {
+    chunks.push(`  <rect x="${maskedX}" y="34" width="${maskedW}" height="28" rx="14" fill="${CHIP}" stroke="${ACCENT}"/>`);
+    chunks.push(text(maskedX + maskedW / 2, 53, masked, { size: 13, fill: ACCENT, family: "mono", weight: 700, anchor: "middle" }));
+  }
+  return chunks.join("\n");
+}
+
+function track(active: Set<string>): string {
+  const x0 = 36;
+  const y = 78;
+  const width = 888;
+  const gap = 4;
+  const blockW = (width - gap * (BEATS.length - 1)) / BEATS.length;
+  const chunks: string[] = [`  <rect x="${x0}" y="${y}" width="${width}" height="22" rx="6" fill="${TRACK}"/>`];
+  BEATS.forEach((beat, index) => {
+    const x = x0 + index * (blockW + gap);
+    const on = active.has(beat.label);
+    const fill = on ? beat.color : "url(#idle)";
+    chunks.push(`  <rect x="${x.toFixed(1)}" y="${y}" width="${blockW.toFixed(1)}" height="22" rx="4" fill="${fill}"/>`);
+    chunks.push(
+      text(x + blockW / 2, y + 40, beat.label, {
+        size: 13,
+        fill: on ? beat.color : MUTED,
+        family: "mono",
+        anchor: "middle",
+      }),
+    );
+  });
+  return chunks.join("\n");
+}
+
+function filesRow(summary: SessionSummary): string {
+  const y = 132;
+  const names = summary.files.slice(0, 4).map((file) => file.path);
+  const extra = summary.files.length - names.length;
+  const chunks = [row(y, 86), heading(y, "FILES TOUCHED", String(summary.files.length))];
+  let x = 48;
+  if (names.length === 0) {
+    chunks.push(text(48, y + 58, "No files edited", { size: 16, fill: MUTED, family: "sans" }));
+    return chunks.join("\n");
+  }
+  for (const name of names) {
+    const w = Math.min(220, Math.max(88, name.length * 7.6 + 22));
+    chunks.push(`  <rect x="${x}" y="${y + 40}" width="${w.toFixed(1)}" height="28" rx="7" fill="${BG}" stroke="#263241"/>`);
+    chunks.push(text(x + 12, y + 59, clip(name, 28), { size: 14, fill: INK, family: "mono" }));
+    x += w + 8;
+  }
+  if (extra > 0) chunks.push(text(x, y + 59, `+${extra}`, { size: 14, fill: MUTED, family: "mono" }));
+  return chunks.join("\n");
+}
+
+function testsRow(summary: SessionSummary): string {
+  const y = 226;
+  const phrase = testsPhrase(summary);
+  const outcome = rollupTests(summary.tests);
+  const color = outcome === "pass" ? ADD : outcome === "fail" ? REMOVE : MUTED;
+  const mark = !summary.testsRun ? "–" : outcome === "fail" ? "✕" : "✓";
+  return [
+    row(y, 78),
+    heading(y, "TESTS RAN", ""),
+    text(48, y + 56, mark, { size: 18, fill: color, family: "sans", weight: 700 }),
+    text(72, y + 56, phrase, { size: 18, fill: color, family: "mono" }),
+  ].join("\n");
+}
+
+function decisionRow(decision: string): string {
+  const y = 312;
+  return [
+    row(y, 86),
+    heading(y, "KEY DECISION", ""),
+    text(48, y + 58, clip(decision, 78), { size: 20, fill: INK, family: "sans", weight: 700 }),
+  ].join("\n");
+}
+
+function footer(maskedCount: number): string {
+  const label = maskedCount > 0 ? `masked ×${maskedCount} · raw session never uploaded` : "raw session never uploaded";
+  return text(36, 436, label, { size: 13, fill: MUTED, family: "mono" });
+}
+
+function row(y: number, height: number): string {
+  return `  <rect x="32" y="${y}" width="896" height="${height}" rx="10" fill="${ROW}"/>`;
+}
+
+function heading(y: number, label: string, count: string): string {
+  const suffix = count ? ` · ${count}` : "";
+  return text(48, y + 24, `${label}${suffix}`, { size: 13, fill: MUTED, family: "mono", weight: 700 });
+}
+
+function clip(value: string, max: number): string {
   if (value.length <= max) return value;
   return `${value.slice(0, max - 1).trimEnd()}…`;
 }
@@ -176,18 +217,10 @@ function text(
   x: number,
   y: number,
   value: string,
-  style: {
-    size: number;
-    fill: string;
-    family: "sans" | "mono";
-    weight?: number;
-    spacing?: string;
-    anchor?: "start" | "middle" | "end";
-  },
+  style: { size: number; fill: string; family: "sans" | "mono"; weight?: number; anchor?: "start" | "middle" | "end" },
 ): string {
   const family = style.family === "mono" ? MONO : SANS;
   const weight = style.weight ? ` font-weight="${style.weight}"` : "";
-  const spacing = style.spacing ? ` letter-spacing="${style.spacing}"` : "";
   const anchor = style.anchor && style.anchor !== "start" ? ` text-anchor="${style.anchor}"` : "";
-  return `  <text x="${x}" y="${y}" fill="${style.fill}" font-family="${family}" font-size="${style.size}"${weight}${spacing}${anchor}>${escapeXml(value)}</text>`;
+  return `  <text x="${x.toFixed(1)}" y="${y}" fill="${style.fill}" font-family="${family}" font-size="${style.size}"${weight}${anchor}>${escapeXml(value)}</text>`;
 }

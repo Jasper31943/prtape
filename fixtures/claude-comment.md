@@ -1,6 +1,6 @@
 ### AgentTape
 
-**Ship the redacted timeline. Left [REDACTED_API_KEY] off the PR.**
+**Ship the redacted timeline.**
 
 ```text
 ask ──▶ 3 files ──▶ tests pass ──▶ ship
@@ -10,7 +10,7 @@ ask ──▶ 3 files ──▶ tests pass ──▶ ship
 | --- | --- |
 | Source | Claude Code · `feature/redact-timeline` · 2026-11-01 15:04 UTC |
 | Files touched | `src/redact.ts` · `src/timeline/svg.ts` · `README.md` |
-| Tests | yes · pass · `AWS_SECRET_ACCESS_KEY=[REDACTED_AWS_KEY] npm test` |
+| Tests | npm test · pass |
 
 ```mermaid
 flowchart LR
@@ -26,8 +26,8 @@ flowchart LR
 2. **Edit** — `src/redact.ts`
 3. **Edit** — `src/timeline/svg.ts`
 4. **Write** — `README.md`
-5. **Test** — `AWS_SECRET_ACCESS_KEY=[REDACTED_AWS_KEY] npm test` · pass
-6. **Decision** — Ship the redacted timeline. Left [REDACTED_API_KEY] off the PR.
+5. **Test** — `npm test` · pass
+6. **Decision** — Ship the redacted timeline.
 
 </details>
 

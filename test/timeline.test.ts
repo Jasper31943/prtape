@@ -19,12 +19,26 @@ describe("timeline snapshots", () => {
     assert.equal(comment, fs.readFileSync(path.join(root, "fixtures", "claude-comment.md"), "utf8"));
     assert.equal(svg, fs.readFileSync(path.join(root, "docs", "preview.svg"), "utf8"));
     assert.doesNotMatch(svg, /<script|foreignObject/i);
-    assert.equal(svg.match(/<filter /g)?.length, 1);
+    assert.equal(svg.match(/<filter /g)?.length ?? 0, 0);
     assert.equal(svg.match(/<linearGradient /g)?.length, 1);
+    assert.match(svg, /width="960"/);
+    assert.match(svg, /height="480"/);
+    assert.match(svg, />read</);
+    assert.match(svg, />edit</);
+    assert.match(svg, />fail</);
+    assert.match(svg, />fix</);
+    assert.match(svg, />pass</);
+    assert.match(svg, />commit</);
+    assert.match(svg, /FILES TOUCHED/);
+    assert.match(svg, /TESTS RAN/);
+    assert.match(svg, /KEY DECISION/);
+    assert.match(svg, /npm test · pass/);
     assert.match(svg, /#0B0F14/);
     assert.match(svg, /#39FF88/);
     assert.match(svg, /#22D3EE/);
-    assert.doesNotMatch(svg, /#f3efe6|#fbf8f2|#1c1714/i);
+    assert.match(svg, /#33445A/);
+    assert.doesNotMatch(svg, /\[REDACTED|sk-•|10\.0\./);
+    assert.doesNotMatch(comment, /\[REDACTED/);
     for (const block of svg.split("<text").slice(1)) {
       if (!block.includes('fill="#7D8A99"')) continue;
       const size = /font-size="(\d+)"/.exec(block);

@@ -23,15 +23,13 @@ export function filesDetail(summary: SessionSummary, maxNames = 3): string {
   return extra > 0 ? `${listed} · +${extra}` : listed;
 }
 
-export function testsPhrase(summary: SessionSummary, style: "svg" | "table"): string {
-  if (!summary.testsRun || summary.tests.length === 0) {
-    return style === "table" ? "no" : "not run";
-  }
+/** Reviewer-facing test line. The command is already scrubbed, so this is `npm test · pass`. */
+export function testsPhrase(summary: SessionSummary): string {
+  if (!summary.testsRun || summary.tests.length === 0) return "not run";
   const outcome = rollupTests(summary.tests);
   const word = outcome === "pass" ? "pass" : outcome === "fail" ? "fail" : "ran";
-  const command = truncate(oneLine(summary.tests[0]?.command ?? ""), style === "svg" ? 80 : 72);
-  const more = summary.tests.length > 1 ? ` · +${summary.tests.length - 1}` : "";
-  return `yes · ${word}${command ? ` · ${command}` : ""}${more}`;
+  const command = oneLine(summary.tests[0]?.command ?? "");
+  return command ? `${command} · ${word}` : word;
 }
 
 export function asciiFlow(summary: SessionSummary): string {

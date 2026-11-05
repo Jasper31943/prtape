@@ -61,7 +61,9 @@ describe("cli", () => {
     const parsed = JSON.parse(result.stdout) as { testsRun: boolean; source: string; decision: string; title: string };
     assert.equal(parsed.source, "aider");
     assert.equal(parsed.testsRun, true);
-    assert.match(parsed.decision, /\[REDACTED_GITHUB_TOKEN\]/);
+    assert.equal(parsed.decision, "Ship the redacted timeline.");
+    assert.equal(parsed.title.includes("[REDACTED"), false);
+    assert.equal(result.stdout.includes("[REDACTED"), false);
     assert.equal(result.stdout.includes("### AgentTape"), false);
     for (const canary of SECRET_CANARIES) {
       assert.equal(result.stdout.includes(canary), false, canary);

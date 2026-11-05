@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { parseAider } from "../src/adapters/aider.js";
-import { redactSession } from "../src/redact.js";
+import { presentSummary } from "../src/display.js";
 import { renderComment } from "../src/timeline/md.js";
 import { renderSvg } from "../src/timeline/svg.js";
 import { AIDER_LEAK_MARKERS, SECRET_CANARIES } from "./canaries.js";
@@ -29,13 +29,17 @@ describe("Aider adapter", () => {
     const summary = parseAider(raw, "aider-chat-history.md");
     const comment = renderComment(summary);
     const svg = renderSvg(summary);
-    const json = JSON.stringify(redactSession(summary));
+    const presented = presentSummary(summary);
+    const json = JSON.stringify(presented.summary);
     for (const rendered of [comment, svg, json]) {
       assertNoSecrets(rendered, raw);
       assertMarkersAbsent(rendered, AIDER_LEAK_MARKERS);
+      assert.equal(rendered.includes("[REDACTED"), false);
     }
+    assert.equal(presented.summary.decision, "Ship the redacted timeline.");
+    assert.equal(presented.summary.tests[0]?.command, "npm test");
     assert.match(comment, /ask ──▶ 1 file ──▶ tests pass ──▶ ship/);
-    assert.match(comment, /\[REDACTED_GITHUB_TOKEN\]/);
+    assert.match(comment, /npm test · pass/);
     assert.match(svg, /Aider/);
     assert.match(svg, /src\/redact\.ts/);
     for (const canary of SECRET_CANARIES) {

@@ -11,11 +11,12 @@ import {
   type DiscoverOptions,
   type SourceChoice,
 } from "./discover.js";
+import { presentSummary } from "./display.js";
 import { glanceRaster } from "./glance.js";
 import { GhError, postComment, type CommandRunner } from "./gh.js";
 import { hostTimelinePng, type HostResult } from "./orphan.js";
 import { renderPng } from "./png.js";
-import { redactSession, type RedactOptions } from "./redact.js";
+import type { RedactOptions } from "./redact.js";
 import { sessionIsEmpty } from "./summary.js";
 import { renderComment, terminalSummary } from "./timeline/md.js";
 import { renderSvg } from "./timeline/svg.js";
@@ -91,21 +92,22 @@ export async function runPr(options: RunOptions): Promise<RunResult> {
   }
 
   const redactOptions: RedactOptions = { emails: options.redactEmails };
-  const redacted = redactSession(summary, redactOptions);
-  const svg = renderSvg(redacted, redactOptions);
+  const view = presentSummary(summary, redactOptions);
+  const shown = view.summary;
+  const svg = renderSvg(summary, redactOptions);
   const tmpDir = options.tmpDir ?? os.tmpdir();
-  const svgPath = writeTimelineFile(svg, cwd, redacted.sessionId, tmpDir, "svg");
+  const svgPath = writeTimelineFile(svg, cwd, summary.sessionId, tmpDir, "svg");
   const raster = rasterize(svg);
   const pngPath = raster.png
-    ? writeTimelineFile(raster.png, cwd, redacted.sessionId, tmpDir, "png")
+    ? writeTimelineFile(raster.png, cwd, summary.sessionId, tmpDir, "png")
     : undefined;
 
   if (options.dryRun) {
     return {
-      summary: redacted,
+      summary: shown,
       comment: pngPath
-        ? renderComment(redacted, redactOptions, { url: fileUrl(pngPath), isPrivate: false, dryRun: true })
-        : renderComment(redacted, redactOptions),
+        ? renderComment(summary, redactOptions, { url: fileUrl(pngPath), isPrivate: false, dryRun: true })
+        : renderComment(summary, redactOptions),
       svg,
       svgPath,
       pngPath,
@@ -123,10 +125,10 @@ export async function runPr(options: RunOptions): Promise<RunResult> {
 
   const hosted = await resolveHost(options, cwd, raster);
   const comment = hosted.ok
-    ? renderComment(redacted, redactOptions, { url: hosted.url, isPrivate: hosted.isPrivate })
-    : renderComment(redacted, redactOptions);
+    ? renderComment(summary, redactOptions, { url: hosted.url, isPrivate: hosted.isPrivate })
+    : renderComment(summary, redactOptions);
   const base = {
-    summary: redacted,
+    summary: shown,
     comment,
     svg,
     svgPath,
