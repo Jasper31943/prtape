@@ -34,7 +34,10 @@ describe("cli", () => {
     assert.match(result.stderr, /dry-run/);
     assert.match(result.stderr, /SVG: /);
     assert.match(result.stderr, /PNG: /);
-    assert.match(result.stdout, /^!\[AgentTape timeline\]\(file:\/\//);
+    assert.match(result.stdout, /^!\[AgentTape timeline\]\(timeline\.png\)/);
+    assert.doesNotMatch(result.stdout, /file:\/\//);
+    assert.doesNotMatch(result.stdout, /11111111-2222-4333-8444-555555555555/);
+    assert.match(result.stderr, /PNG: .+/);
     assert.doesNotMatch(result.stdout, /```mermaid/);
     assert.doesNotMatch(result.stdout, /https:\/\/github\.com\/[^/\s]+\/[^/\s]+\/raw\/[0-9a-f]{7,64}\//);
     const svgPath = /SVG: (.+)/.exec(result.stderr)?.[1]?.trim();

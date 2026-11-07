@@ -16,7 +16,7 @@ import { rollupTests } from "../summary.js";
 export interface CommentImage {
   url: string;
   isPrivate: boolean;
-  /** Local file:// preview. Nothing was uploaded. */
+  /** Dry-run image name. The absolute path stays on stderr. */
   dryRun?: boolean;
 }
 
@@ -99,7 +99,7 @@ export function renderComment(
 
 function dryRunNote(): string {
   return [
-    "_Dry run. This file:// image was not uploaded and no comment was posted._",
+    "_Dry run. Nothing was uploaded and no comment was posted. The local PNG path is printed on stderr, not in this comment._",
     "_A real `agenttape pr` pushes the PNG to the orphan ref `refs/agenttape/<head>` and the comment leads with `https://github.com/{owner}/{repo}/raw/{sha}/timeline.png`._",
     "_On a public repo, logged-out viewers see that image. On a private repo they may not; collaborators who can open the repo usually see it._",
   ].join(" ");

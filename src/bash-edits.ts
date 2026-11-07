@@ -1,9 +1,18 @@
 import { isScratchPath } from "./privacy.js";
+import { isTestCommand } from "./tests-detect.js";
 
 export interface BashEdit {
   path: string;
   action: "edit" | "write";
 }
+
+export type BashEvent =
+  | { kind: "read"; path?: string }
+  | { kind: "edit"; path: string; action: "edit" | "write" }
+  | { kind: "test" }
+  | { kind: "commit" };
+
+const READERS = new Set(["cat", "head", "tail", "less", "more", "bat", "nl"]);
 
 /**
  * Project files a Bash command writes, conservatively.
@@ -12,23 +21,72 @@ export interface BashEdit {
  */
 export function bashFileEdits(command: string): BashEdit[] {
   const edits: BashEdit[] = [];
-  for (const segment of splitSegments(command)) {
-    const body = stripLead(segment);
-    if (!body) continue;
-    const words = shellWords(body);
-    const head = words[0] ?? "";
-    if (head === "tee") continue;
-    if (head === "sed") {
-      for (const file of sedTargets(words)) remember(edits, file, "edit");
-      continue;
-    }
-    if (head === "perl") {
-      for (const file of perlTargets(words)) remember(edits, file, "edit");
-      continue;
-    }
-    for (const file of redirectTargets(body)) remember(edits, file, "write");
+  for (const event of bashEvents(command)) {
+    if (event.kind === "edit") remember(edits, event.path, event.action);
   }
   return edits;
+}
+
+/**
+ * Left-to-right actions inside one Bash command.
+ * A test command drops setup reads (`cat package.json && npm test`) so the
+ * test stays the event. Edits keep their place relative to that test
+ * (`sed -i file && npm test` is an edit, then the test).
+ */
+export function bashEvents(command: string): BashEvent[] {
+  const events: BashEvent[] = [];
+  let sawTest = false;
+  for (const segment of splitSegments(command)) {
+    for (const event of segmentEvents(segment)) {
+      if (event.kind === "test") sawTest = true;
+      events.push(event);
+    }
+  }
+  return sawTest ? events.filter((event) => event.kind !== "read") : events;
+}
+
+function segmentEvents(segment: string): BashEvent[] {
+  const body = stripLead(segment);
+  if (!body) return [];
+  const words = shellWords(body);
+  const head = words[0] ?? "";
+  if (!head || head === "tee") return [];
+  if (head === "git" && words[1] === "commit") return [{ kind: "commit" }];
+  if (head === "sed") {
+    return sedTargets(words)
+      .filter((file) => !isScratchPath(file))
+      .map((file) => ({ kind: "edit" as const, path: file, action: "edit" as const }));
+  }
+  if (head === "perl") {
+    return perlTargets(words)
+      .filter((file) => !isScratchPath(file))
+      .map((file) => ({ kind: "edit" as const, path: file, action: "edit" as const }));
+  }
+  if (isTestCommand(body)) return [{ kind: "test" }];
+  const writes = redirectTargets(body).filter((file) => !isScratchPath(file));
+  if (writes.length > 0) {
+    return writes.map((file) => ({ kind: "edit" as const, path: file, action: "write" as const }));
+  }
+  if (READERS.has(head)) {
+    const file = readerTarget(words);
+    if (file && isScratchPath(file)) return [];
+    return [{ kind: "read", path: file }];
+  }
+  return [];
+}
+
+function readerTarget(words: string[]): string | undefined {
+  const positionals: string[] = [];
+  for (let index = 1; index < words.length; index += 1) {
+    const word = words[index] ?? "";
+    if (word === "-n" || word === "-c" || word === "-b") {
+      index += 1;
+      continue;
+    }
+    if (word.startsWith("-")) continue;
+    positionals.push(word);
+  }
+  return positionals.at(-1);
 }
 
 function remember(edits: BashEdit[], filePath: string, action: BashEdit["action"]): void {

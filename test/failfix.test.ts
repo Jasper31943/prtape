@@ -5,7 +5,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { parseClaude } from "../src/adapters/claude.js";
-import { bashFileEdits } from "../src/bash-edits.js";
+import { bashEvents, bashFileEdits } from "../src/bash-edits.js";
 import { presentSummary } from "../src/display.js";
 import { stripPrivatePaths } from "../src/privacy.js";
 import { withSteps } from "../src/summary.js";
@@ -14,7 +14,7 @@ import { renderSvg } from "../src/timeline/svg.js";
 import { testsPhrase } from "../src/timeline/format.js";
 import { classifyTestOutput, isTestCommand } from "../src/tests-detect.js";
 import { toPublicJson } from "../src/run.js";
-import { fixture } from "./helpers.js";
+import { fixture, trackLabels } from "./helpers.js";
 
 const TAP_FAIL = "not ok 1 - add\n  message: 4 !== 5\n# tests 1\n# pass 0\n# fail 1\n# skipped 0\n";
 const TAP_PASS = "ok 1 - add\n# tests 1\n# pass 1\n# fail 0\n# skipped 0\n";
@@ -57,6 +57,29 @@ describe("conservative Bash edits", () => {
     assert.deepEqual(bashFileEdits("perl -pe 's/a/b/' lib/add.js"), []);
     assert.deepEqual(bashFileEdits("echo note > src/note.txt"), [{ path: "src/note.txt", action: "write" }]);
     assert.deepEqual(bashFileEdits("echo note >> src/note.txt"), [{ path: "src/note.txt", action: "write" }]);
+  });
+
+  it("keeps edit and test order inside one command and does not invent a commit", () => {
+    const tee = "/private/tmp/claude-501/-Users-patdoe-agenttape-failfix/sess/scratchpad/npm-test-before.log";
+    assert.deepEqual(
+      bashEvents(`ls -la && cat package.json && npm test 2>&1 | tee ${tee}`).map((event) => event.kind),
+      ["test"],
+    );
+    assert.deepEqual(
+      bashEvents("cat math.js && cat math.test.js").map((event) => event.kind),
+      ["read", "read"],
+    );
+    assert.deepEqual(
+      bashEvents("sed -i '' 's/assert.equal(add(2, 2), 5)/assert.equal(add(2, 2), 4)/' math.test.js && cat math.test.js && npm test").map(
+        (event) => event.kind,
+      ),
+      ["edit", "test"],
+    );
+    assert.deepEqual(
+      bashEvents("npm test && sed -i 's/a/b/' math.test.js").map((event) => event.kind),
+      ["test", "edit"],
+    );
+    assert.deepEqual(bashEvents('git commit -m "ship the fix"').map((event) => event.kind), ["commit"]);
   });
 
   it("ignores reads, tee capture, and scratch redirects", () => {
@@ -119,13 +142,18 @@ describe("synthetic fail-then-fix session", () => {
     const svg = renderSvg(summary);
     const json = JSON.stringify(toPublicJson(presented.summary));
     assert.equal(testsPhrase(presented.summary), "npm test · pass");
+    assert.deepEqual(
+      presented.summary.steps
+        .filter((step) => step.kind !== "prompt" && step.kind !== "decision")
+        .map((step) => (step.kind === "test" ? step.outcome : step.kind)),
+      ["fail", "read", "read", "read", "edit", "pass"],
+    );
+    assert.deepEqual(trackLabels(svg), ["fail", "read", "edit", "pass"]);
     assert.match(comment, /npm test · pass/);
     assert.match(comment, /· fail/);
     assert.match(comment, /· pass/);
-    assert.match(svg, />fail</);
-    assert.match(svg, />fix</);
-    assert.match(svg, />pass</);
-    assert.match(svg, />edit</);
+    assert.doesNotMatch(svg, />fix</);
+    assert.doesNotMatch(svg, />commit</);
     assert.match(svg, /math\.test\.js/);
     assert.match(svg, /npm test · pass/);
     assert.doesNotMatch(svg, /npm test · fail/);

@@ -17,6 +17,10 @@ export function assertNoSecrets(rendered: string, raw: string): void {
   }
 }
 
+export function trackLabels(svg: string): string[] {
+  return [...svg.matchAll(/y="118"[^>]*>(read|edit|fail|pass|commit)</g)].map((match) => match[1] ?? "");
+}
+
 export function assertMarkersAbsent(rendered: string, markers: readonly string[]): void {
   for (const marker of markers) {
     assert.equal(rendered.includes(marker), false, `marker leaked: ${marker}`);

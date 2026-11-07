@@ -1,4 +1,4 @@
-import type { SessionDraft, SessionSummary, Step, TestOutcome, TestRun } from "./types.js";
+import type { SessionDraft, SessionSummary, Step, TestOutcome, TestRun, TimelineEvent } from "./types.js";
 import { FALLBACK_DECISION, FALLBACK_TITLE } from "./types.js";
 
 const FILE_RANK = { edit: 1, delete: 2, write: 3 } as const;
@@ -6,19 +6,63 @@ const FILE_RANK = { edit: 1, delete: 2, write: 3 } as const;
 export function withSteps(draft: SessionDraft): SessionSummary {
   const title = draft.title.trim() || FALLBACK_TITLE;
   const decision = draft.decision.trim() || FALLBACK_DECISION;
+  const events = draft.events ?? bucketEvents(draft.files, draft.tests);
+  const files = draft.events ? filesFrom(events) : draft.files;
+  const tests = draft.events ? testsFrom(events) : draft.tests;
   const steps: Step[] = [
     { kind: "prompt", text: title },
-    ...draft.files.map((file) => ({ kind: "edit" as const, path: file.path, action: file.action })),
-    ...draft.tests.map((test) => ({ kind: "test" as const, command: test.command, outcome: test.outcome })),
+    ...events.map((event) => eventStep(event)),
     { kind: "decision", text: decision },
   ];
   return {
     ...draft,
     title,
     decision,
-    testsRun: draft.tests.length > 0,
+    files,
+    tests,
+    events,
+    testsRun: tests.length > 0,
     steps,
   };
+}
+
+/** Files then tests. Used when a parser has no interleaved event list. */
+function bucketEvents(files: SessionDraft["files"], tests: TestRun[]): TimelineEvent[] {
+  return [
+    ...files.map((file) => ({ kind: "edit" as const, path: file.path, action: file.action })),
+    ...tests.map((test) => ({ kind: "test" as const, command: test.command, outcome: test.outcome })),
+  ];
+}
+
+function filesFrom(events: TimelineEvent[]): SessionDraft["files"] {
+  const files: SessionDraft["files"] = [];
+  for (const event of events) {
+    if (event.kind === "edit") addFile(files, event.path, event.action);
+  }
+  return files;
+}
+
+function testsFrom(events: TimelineEvent[]): TestRun[] {
+  return events
+    .filter((event): event is Extract<TimelineEvent, { kind: "test" }> => event.kind === "test")
+    .map((event) => ({ command: event.command, outcome: event.outcome }));
+}
+
+function eventStep(event: TimelineEvent): Step {
+  switch (event.kind) {
+    case "read":
+      return { kind: "read", path: event.path };
+    case "edit":
+      return { kind: "edit", path: event.path, action: event.action };
+    case "test":
+      return { kind: "test", command: event.command, outcome: event.outcome };
+    case "commit":
+      return { kind: "commit" };
+    default: {
+      const never: never = event;
+      return never;
+    }
+  }
 }
 
 export function addFile(
@@ -58,11 +102,3 @@ export function rollupTests(tests: TestRun[]): "pass" | "fail" | "unknown" | "no
   return last.outcome;
 }
 
-export function sawFailureThenPass(tests: TestRun[]): boolean {
-  let failed = false;
-  for (const test of tests) {
-    if (test.outcome === "fail") failed = true;
-    else if (failed && test.outcome === "pass") return true;
-  }
-  return false;
-}

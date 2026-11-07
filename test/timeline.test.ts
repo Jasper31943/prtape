@@ -8,7 +8,7 @@ import { asciiFlow } from "../src/timeline/format.js";
 import { renderComment } from "../src/timeline/md.js";
 import { renderSvg } from "../src/timeline/svg.js";
 import { SECRET_CANARIES } from "./canaries.js";
-import { fixture, root } from "./helpers.js";
+import { fixture, root, trackLabels } from "./helpers.js";
 
 describe("timeline snapshots", () => {
   it("matches the Claude comment and preview SVG", () => {
@@ -28,7 +28,8 @@ describe("timeline snapshots", () => {
     assert.doesNotMatch(svg, />fail</);
     assert.doesNotMatch(svg, />fix</);
     assert.match(svg, />pass</);
-    assert.match(svg, />commit</);
+    assert.doesNotMatch(svg, />commit</);
+    assert.deepEqual(trackLabels(svg), ["read", "edit", "pass"]);
     assert.match(svg, /redacted ×16/);
     assert.doesNotMatch(svg, /masked ×/);
     assert.match(svg, /FILES TOUCHED/);

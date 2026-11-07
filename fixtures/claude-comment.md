@@ -23,11 +23,12 @@ flowchart LR
 <summary>Steps</summary>
 
 1. **Ask** — Strip keys and internal hosts before posting.
-2. **Edit** — `src/redact.ts`
-3. **Edit** — `src/timeline/svg.ts`
-4. **Write** — `README.md`
-5. **Test** — `npm test` · pass
-6. **Decision** — Ship the redacted timeline; secrets stay off the PR.
+2. **Read** — `src/redact.ts`
+3. **Edit** — `src/redact.ts`
+4. **Edit** — `src/timeline/svg.ts`
+5. **Write** — `README.md`
+6. **Test** — `npm test` · pass
+7. **Decision** — Ship the redacted timeline; secrets stay off the PR.
 
 </details>
 

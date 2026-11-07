@@ -64,7 +64,6 @@ export function toPublicJson(
   return {
     version: VERSION,
     source: summary.source,
-    sessionId: summary.sessionId,
     startedAt: summary.startedAt ?? null,
     model: summary.model ?? null,
     branch: summary.branch ?? null,
@@ -108,7 +107,7 @@ export async function runPr(options: RunOptions): Promise<RunResult> {
     return {
       summary: shown,
       comment: pngPath
-        ? renderComment(summary, redactOptions, { url: fileUrl(pngPath), isPrivate: false, dryRun: true })
+        ? renderComment(summary, redactOptions, { url: "timeline.png", isPrivate: false, dryRun: true })
         : renderComment(summary, redactOptions),
       svg,
       svgPath,
@@ -262,11 +261,6 @@ export function assertNotInsideProject(target: string, cwd: string): void {
   if (inside) {
     throw new Error(`Refusing to write the timeline inside the project tree (${file}).`);
   }
-}
-
-function fileUrl(filePath: string): string {
-  const absolute = path.resolve(filePath);
-  return `file://${absolute.split(path.sep).join("/")}`;
 }
 
 function gitBranch(cwd: string): string | undefined {

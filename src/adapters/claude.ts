@@ -1,10 +1,9 @@
 import path from "node:path";
-import type { SessionSummary, TestOutcome } from "../types.js";
+import type { SessionSummary, TestOutcome, TimelineEvent } from "../types.js";
 import { FALLBACK_DECISION, FALLBACK_TITLE } from "../types.js";
-import { bashFileEdits } from "../bash-edits.js";
-import { isScratchPath } from "../privacy.js";
-import { addFile, addTest, withSteps } from "../summary.js";
-import { classifyTestOutput, isTestCommand } from "../tests-detect.js";
+import { bashEvents } from "../bash-edits.js";
+import { withSteps } from "../summary.js";
+import { classifyTestOutput } from "../tests-detect.js";
 import { oneLine } from "../text.js";
 
 /**
@@ -81,10 +80,9 @@ export function parseClaude(text: string, fallbackId = "claude-session"): Sessio
   const model = firstModel(active);
 
   const prompts: string[] = [];
-  const files: SessionSummary["files"] = [];
-  const tests: SessionSummary["tests"] = [];
   const assistantLines: string[] = [];
-  const toolUses = new Map<string, { name: string; command?: string }>();
+  const seenTools = new Set<string>();
+  const pending: Pending[] = [];
 
   for (const record of active) {
     if (record.isSidechain || record.isMeta) continue;
@@ -101,25 +99,15 @@ export function parseClaude(text: string, fallbackId = "claude-session"): Sessio
         const id = typeof block.id === "string" ? block.id : undefined;
         const name = typeof block.name === "string" ? block.name : "";
         const input = isRecord(block.input) ? block.input : {};
-        if (id && toolUses.has(id)) continue;
-        const command = bashCommand(name, input);
-        if (id) toolUses.set(id, { name, command });
-        collectFileTouch(files, name, input, cwd);
-        if (command) collectBashEdits(files, command, cwd);
+        if (id && seenTools.has(id)) continue;
+        if (id) seenTools.add(id);
+        pending.push(...toolEvents(name, input, cwd, id));
       }
     }
   }
 
   const results = collectToolResults(records);
-  for (const [id, tool] of toolUses) {
-    const command = tool.command;
-    if (!command || !isTestCommand(command)) continue;
-    const result = results.get(id);
-    const outcome: TestOutcome = result
-      ? classifyTestOutput(result.text, result.isError, result.interrupted)
-      : "unknown";
-    addTest(tests, command, outcome);
-  }
+  const events = pending.map((item) => resolveEvent(item, results));
 
   const summaryText = pickSummary(records, activeIds);
   const title = prompts[0] ? oneLine(prompts[0]) : FALLBACK_TITLE;
@@ -134,9 +122,52 @@ export function parseClaude(text: string, fallbackId = "claude-session"): Sessio
     cwd,
     title,
     decision,
-    files,
-    tests,
+    files: [],
+    tests: [],
+    events,
   });
+}
+
+type Pending =
+  | { kind: "read"; path?: string }
+  | { kind: "edit"; path: string; action: "edit" | "write" | "delete" }
+  | { kind: "test"; command: string; toolId?: string }
+  | { kind: "commit" };
+
+function toolEvents(name: string, input: Record<string, unknown>, cwd: string | undefined, toolId: string | undefined): Pending[] {
+  const command = bashCommand(name, input);
+  if (command) {
+    return bashEvents(command).map((event) => {
+      if (event.kind === "edit") return { kind: "edit", path: displayPath(event.path, cwd), action: event.action };
+      if (event.kind === "read") return { kind: "read", path: event.path ? displayPath(event.path, cwd) : undefined };
+      if (event.kind === "test") return { kind: "test", command, toolId };
+      return { kind: "commit" };
+    });
+  }
+  const tool = name.toLowerCase();
+  if (tool === "read" || tool === "view") {
+    const filePath = toolFilePath(input);
+    return [{ kind: "read", path: filePath ? displayPath(filePath, cwd) : undefined }];
+  }
+  const edit = fileEdit(tool, input, cwd);
+  return edit ? [edit] : [];
+}
+
+function resolveEvent(item: Pending, results: Map<string, ToolResult>): TimelineEvent {
+  if (item.kind !== "test") return item;
+  const result = item.toolId ? results.get(item.toolId) : undefined;
+  const outcome: TestOutcome = result ? classifyTestOutput(result.text, result.isError, result.interrupted) : "unknown";
+  return { kind: "test", command: item.command, outcome };
+}
+
+function fileEdit(tool: string, input: Record<string, unknown>, cwd: string | undefined): Pending | undefined {
+  const filePath = toolFilePath(input);
+  if (!filePath) return undefined;
+  const path = displayPath(filePath, cwd);
+  if (FILE_WRITE_TOOLS.has(tool)) return { kind: "edit", path, action: "write" };
+  if (FILE_DELETE_TOOLS.has(tool)) return { kind: "edit", path, action: "delete" };
+  if (FILE_EDIT_TOOLS.has(tool)) return { kind: "edit", path, action: "edit" };
+  return undefined;
 }
 
 function parseLines(text: string): ClaudeRecord[] {
@@ -220,33 +251,6 @@ interface ContentBlock {
 function contentBlocks(content: unknown): ContentBlock[] {
   if (!Array.isArray(content)) return [];
   return content.filter(isRecord) as ContentBlock[];
-}
-
-function collectBashEdits(
-  files: SessionSummary["files"],
-  command: string,
-  cwd: string | undefined,
-): void {
-  for (const edit of bashFileEdits(command)) {
-    const display = displayPath(edit.path, cwd);
-    if (!display || isScratchPath(edit.path) || isScratchPath(display)) continue;
-    addFile(files, display, edit.action);
-  }
-}
-
-function collectFileTouch(
-  files: SessionSummary["files"],
-  name: string,
-  input: Record<string, unknown>,
-  cwd: string | undefined,
-): void {
-  const tool = name.toLowerCase();
-  const filePath = toolFilePath(input);
-  if (!filePath) return;
-  const display = displayPath(filePath, cwd);
-  if (FILE_WRITE_TOOLS.has(tool)) addFile(files, display, "write");
-  else if (FILE_DELETE_TOOLS.has(tool)) addFile(files, display, "delete");
-  else if (FILE_EDIT_TOOLS.has(tool)) addFile(files, display, "edit");
 }
 
 function toolFilePath(input: Record<string, unknown>): string | undefined {

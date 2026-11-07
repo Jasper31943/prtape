@@ -3,7 +3,7 @@ import { redact } from "./redact.js";
 import { stripPrivatePaths } from "./privacy.js";
 import { rollupTests, withSteps } from "./summary.js";
 import { displayTestCommand } from "./tests-detect.js";
-import type { SessionSummary } from "./types.js";
+import type { SessionSummary, TimelineEvent } from "./types.js";
 import { oneLine } from "./text.js";
 
 const MARKER = /\[REDACTED_[A-Z0-9_]+\]/;
@@ -30,12 +30,7 @@ export function presentSummary(input: SessionSummary, options: RedactOptions = {
 
   const decision = scrubDecision(input.decision, input, options);
   const title = scrubTitle(input.title, options);
-  const files = input.files
-    .map((file) => ({ ...file, path: scrubPiece(file.path, options) }))
-    .filter((file) => file.path.length > 0);
-  const tests = input.tests
-    .map((test) => ({ ...test, command: scrubCommand(test.command, options) }))
-    .filter((test) => test.command.length > 0);
+  const events = input.events.map((event) => scrubEvent(event, options)).filter((event): event is TimelineEvent => event !== undefined);
 
   return {
     secretsStripped,
@@ -46,8 +41,7 @@ export function presentSummary(input: SessionSummary, options: RedactOptions = {
       decision,
       cwd: publicCwd(input.cwd),
       branch: input.branch ? stripPrivatePaths(input.branch) || undefined : undefined,
-      files,
-      tests,
+      events,
     }),
   };
 }
@@ -61,13 +55,26 @@ export function scrubTitle(text: string, options: RedactOptions = {}): string {
 }
 
 export function scrubProse(text: string, options: RedactOptions = {}): string {
-  const sentences = text
-    .split(/\n+/)
-    .flatMap((line) => line.split(/(?<=[.!?])\s+/));
-  const kept = sentences
-    .map((sentence) => stripPrivatePaths(sentence.trim()))
-    .filter((sentence) => sentence && !sentenceHasSecret(sentence, options));
+  const cleaned = cleanDisplayMarkdown(stripPrivatePaths(text));
+  const sentences = cleaned.split(/\n+/).flatMap((line) => line.split(/(?<=[.!?])\s+/));
+  const kept = sentences.map((sentence) => sentence.trim()).filter((sentence) => sentence && !sentenceHasSecret(sentence, options));
   return oneLine(kept.join(" "));
+}
+
+/** Drop markdown markers and empty code spans left behind when a path was deleted. */
+export function cleanDisplayMarkdown(text: string): string {
+  return text
+    .replace(/```[\s\S]*?```/g, " ")
+    .replace(/~~~[\s\S]*?~~~/g, " ")
+    .replace(/`{1,3}\s*`{1,3}/g, "")
+    .replace(/\*\*([^*]+)\*\*/g, "$1")
+    .replace(/__([^_]+)__/g, "$1")
+    .replace(/(^|[^\w*])\*([^*\n]+)\*(?!\*)/g, "$1$2")
+    .replace(/`([^`]+)`/g, "$1")
+    .replace(/`+/g, "")
+    .replace(/^\s{0,3}#{1,6}\s+/gm, "")
+    .replace(/[ \t]{2,}/g, " ")
+    .trim();
 }
 
 export function scrubCommand(command: string, options: RedactOptions = {}): string {
@@ -117,6 +124,24 @@ function scrubPiece(text: string, options: RedactOptions): string {
   const stripped = stripPrivatePaths(text).replace(/^\/+/, "");
   if (!stripped || sentenceHasSecret(stripped, options)) return "";
   return oneLine(stripped);
+}
+
+function scrubEvent(event: TimelineEvent, options: RedactOptions): TimelineEvent | undefined {
+  if (event.kind === "read") {
+    const path = event.path ? scrubPiece(event.path, options) : "";
+    return { kind: "read", path: path || undefined };
+  }
+  if (event.kind === "edit") {
+    const path = scrubPiece(event.path, options);
+    if (!path) return undefined;
+    return { ...event, path };
+  }
+  if (event.kind === "test") {
+    const command = scrubCommand(event.command, options);
+    if (!command) return undefined;
+    return { ...event, command };
+  }
+  return event;
 }
 
 function publicCwd(cwd: string | undefined): string | undefined {

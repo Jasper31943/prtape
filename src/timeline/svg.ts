@@ -2,8 +2,10 @@ import type { SessionSummary } from "../types.js";
 import type { RedactOptions } from "../redact.js";
 import { presentSummary } from "../display.js";
 import { escapeXml } from "../text.js";
-import { rollupTests, sawFailureThenPass } from "../summary.js";
+import { rollupTests } from "../summary.js";
+import type { TimelineEvent } from "../types.js";
 import { sourceLabel, testsPhrase } from "./format.js";
+import { textWidth, wrapText } from "./wrap.js";
 
 const WIDTH = 960;
 const HEIGHT = 480;
@@ -24,14 +26,13 @@ const REMOVE = "#FF5C7A";
 const READ = "#33445A";
 const CHIP = "#0F2A1D";
 
-const BEATS: { label: string; color: string }[] = [
-  { label: "read", color: READ },
-  { label: "edit", color: ACCENT2 },
-  { label: "fail", color: REMOVE },
-  { label: "fix", color: ACCENT2 },
-  { label: "pass", color: ADD },
-  { label: "commit", color: ACCENT },
-];
+const BEAT_COLOR: Record<string, string> = {
+  read: READ,
+  edit: ACCENT2,
+  fail: REMOVE,
+  pass: ADD,
+  commit: ACCENT,
+};
 
 /**
  * 960×480 PR timeline. Six-segment horizontal track, then FILES / TESTS /
@@ -39,7 +40,7 @@ const BEATS: { label: string; color: string }[] = [
  */
 export function renderSvg(input: SessionSummary, options: RedactOptions = {}): string {
   const { summary, maskedCount } = presentSummary(input, options);
-  const active = activeBeats(summary);
+  const beats = observedBeats(summary);
   const source = sourceLabel(summary.source);
   const parts: string[] = [];
   parts.push(`<?xml version="1.0" encoding="UTF-8"?>`);
@@ -59,7 +60,7 @@ export function renderSvg(input: SessionSummary, options: RedactOptions = {}): s
   parts.push(reelMark(28, 26, 48));
   parts.push(wordmark(86, 52));
   parts.push(chips(source, maskedCount));
-  parts.push(track(active));
+  parts.push(track(beats));
   parts.push(filesRow(summary));
   parts.push(testsRow(summary));
   parts.push(decisionRow(summary.decision));
@@ -69,15 +70,36 @@ export function renderSvg(input: SessionSummary, options: RedactOptions = {}): s
   return parts.join("\n");
 }
 
-function activeBeats(summary: SessionSummary): Set<string> {
-  const on = new Set<string>(["read", "commit"]);
-  if (summary.files.length > 0) on.add("edit");
-  const failed = summary.tests.some((test) => test.outcome === "fail");
-  const passed = summary.tests.some((test) => test.outcome === "pass");
-  if (failed) on.add("fail");
-  if (sawFailureThenPass(summary.tests)) on.add("fix");
-  if (passed) on.add("pass");
-  return on;
+/** Observed beats in session order. Consecutive repeats collapse. Nothing is invented. */
+function observedBeats(summary: SessionSummary): { label: string; color: string }[] {
+  const beats: { label: string; color: string }[] = [];
+  for (const event of summary.events) {
+    const label = beatLabel(event);
+    if (!label || beats.at(-1)?.label === label) continue;
+    const color = BEAT_COLOR[label];
+    if (!color) continue;
+    beats.push({ label, color });
+  }
+  return beats;
+}
+
+function beatLabel(event: TimelineEvent): string | undefined {
+  switch (event.kind) {
+    case "read":
+      return "read";
+    case "edit":
+      return "edit";
+    case "test":
+      if (event.outcome === "fail") return "fail";
+      if (event.outcome === "pass") return "pass";
+      return undefined;
+    case "commit":
+      return "commit";
+    default: {
+      const never: never = event;
+      return never;
+    }
+  }
 }
 
 /**
@@ -126,12 +148,14 @@ function chips(source: string, maskedCount: number): string {
   return chunks.join("\n");
 }
 
-function track(active: Set<string>): string {
-  const beats = BEATS.filter((beat) => active.has(beat.label));
+function track(beats: { label: string; color: string }[]): string {
   const x0 = 36;
   const y = 78;
   const width = 888;
   const gap = 6;
+  if (beats.length === 0) {
+    return `  <rect x="${x0}" y="${y}" width="${width}" height="22" rx="6" fill="${TRACK}"/>`;
+  }
   const blockW = (width - gap * (beats.length - 1)) / beats.length;
   const chunks: string[] = [`  <rect x="${x0}" y="${y}" width="${width}" height="22" rx="6" fill="${TRACK}"/>`];
   beats.forEach((beat, index) => {
@@ -185,11 +209,17 @@ function testsRow(summary: SessionSummary): string {
 
 function decisionRow(decision: string): string {
   const y = 312;
-  return [
-    row(y, 86),
-    heading(y, "KEY DECISION", ""),
-    text(48, y + 58, clip(decision, 78), { size: 20, fill: INK, family: "sans", weight: 700 }),
-  ].join("\n");
+  const maxWidth = 848;
+  const single = wrapText(decision, maxWidth, 20, 1);
+  const oneLineFits = single.length === 1 && single[0] !== undefined && !single[0].endsWith("…") && textWidth(single[0], 20) <= maxWidth;
+  const lines = oneLineFits ? single : wrapText(decision, maxWidth, 16, 2);
+  const size = oneLineFits ? 20 : 16;
+  const start = oneLineFits ? y + 58 : y + 46;
+  const step = 22;
+  const body = lines.map((line, index) =>
+    text(48, start + index * step, line, { size, fill: INK, family: "sans", weight: 700 }),
+  );
+  return [row(y, 86), heading(y, "KEY DECISION", ""), ...body].join("\n");
 }
 
 function footer(): string {
@@ -203,11 +233,6 @@ function row(y: number, height: number): string {
 function heading(y: number, label: string, count: string): string {
   const suffix = count ? ` · ${count}` : "";
   return text(48, y + 24, `${label}${suffix}`, { size: 13, fill: MUTED, family: "mono", weight: 700 });
-}
-
-function clip(value: string, max: number): string {
-  if (value.length <= max) return value;
-  return `${value.slice(0, max - 1).trimEnd()}…`;
 }
 
 function text(

@@ -72,12 +72,16 @@ export function stepText(step: Step): string {
   switch (step.kind) {
     case "prompt":
       return `**Ask** — ${truncate(firstSentence(step.text), 180)}`;
+    case "read":
+      return step.path ? `**Read** — \`${step.path}\`` : "**Read**";
     case "edit": {
       const verb = step.action === "write" ? "Write" : step.action === "delete" ? "Delete" : "Edit";
       return `**${verb}** — \`${step.path}\``;
     }
     case "test":
       return `**Test** — \`${truncate(oneLine(step.command), 80)}\` · ${step.outcome}`;
+    case "commit":
+      return "**Commit**";
     case "decision":
       return `**Decision** — ${truncate(oneLine(step.text), 500)}`;
     default: {

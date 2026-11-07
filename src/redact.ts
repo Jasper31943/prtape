@@ -1,4 +1,4 @@
-import type { SessionDraft, SessionSummary } from "./types.js";
+import type { SessionDraft, SessionSummary, TimelineEvent } from "./types.js";
 import { withSteps } from "./summary.js";
 
 export interface RedactOptions {
@@ -81,6 +81,13 @@ export function redact(value: string, options: RedactOptions = {}): string {
   return out;
 }
 
+function redactEvent(event: TimelineEvent, options: RedactOptions): TimelineEvent {
+  if (event.kind === "read") return { kind: "read", path: event.path ? redact(event.path, options) : undefined };
+  if (event.kind === "edit") return { ...event, path: redact(event.path, options) };
+  if (event.kind === "test") return { ...event, command: redact(event.command, options) };
+  return event;
+}
+
 function redactOptional(value: string | undefined, options: RedactOptions): string | undefined {
   if (value === undefined) return undefined;
   return redact(value, options);
@@ -104,6 +111,7 @@ export function redactSession(summary: SessionSummary | SessionDraft, options: R
       command: redact(test.command, options),
       outcome: test.outcome,
     })),
+    events: summary.events?.map((event) => redactEvent(event, options)),
   };
   return withSteps(draft);
 }

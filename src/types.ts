@@ -14,10 +14,19 @@ export interface TestRun {
   outcome: TestOutcome;
 }
 
-export type Step =
-  | { kind: "prompt"; text: string }
+/** One observed action, in the order it happened. Not a canned phase. */
+export type TimelineEvent =
+  | { kind: "read"; path?: string }
   | { kind: "edit"; path: string; action: FileAction }
   | { kind: "test"; command: string; outcome: TestOutcome }
+  | { kind: "commit" };
+
+export type Step =
+  | { kind: "prompt"; text: string }
+  | { kind: "read"; path?: string }
+  | { kind: "edit"; path: string; action: FileAction }
+  | { kind: "test"; command: string; outcome: TestOutcome }
+  | { kind: "commit" }
   | { kind: "decision"; text: string };
 
 /** Used when a session file has no human prompt. */
@@ -37,6 +46,8 @@ export interface SessionSummary {
   decision: string;
   files: TouchedFile[];
   tests: TestRun[];
+  /** Observed actions in session order. Drives steps and the track. */
+  events: TimelineEvent[];
   testsRun: boolean;
   steps: Step[];
 }
@@ -52,4 +63,6 @@ export interface SessionDraft {
   decision: string;
   files: TouchedFile[];
   tests: TestRun[];
+  /** When set, this order wins over files-then-tests bucketing. */
+  events?: TimelineEvent[];
 }

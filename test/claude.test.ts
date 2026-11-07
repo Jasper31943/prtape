@@ -82,6 +82,8 @@ describe("Claude Code adapter", () => {
     assert.equal(presented.summary.title, "Strip keys and internal hosts before posting.");
     assert.equal(presented.summary.decision, "Ship the redacted timeline; secrets stay off the PR.");
     assert.equal(presented.summary.tests[0]?.command, "npm test");
+    assert.equal(json.includes(summary.sessionId), false);
+    assert.equal(json.includes("\"sessionId\""), false);
     assert.equal(json.includes(EMAIL_CANARY), false);
     assert.equal(json.includes(ACTIVE_MARKER), false);
     assert.match(comment, /ask ──▶ 3 files ──▶ tests pass ──▶ ship/);
