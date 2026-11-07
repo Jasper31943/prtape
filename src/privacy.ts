@@ -11,6 +11,16 @@ const HOME_PREFIX = /\/Users\/[^\s/"'`|;&<>]+|\/home\/[^\s/"'`|;&<>]+/g;
 /** Claude's project slug encodes `/Users/<name>/` as `-Users-<name>-`. */
 const ENCODED_HOME = /-(?:Users|home)-[A-Za-z0-9._]+-/g;
 
+export function hasPrivatePath(text: string): boolean {
+  return (
+    /(?:\/private)?\/tmp\/claude-[A-Za-z0-9._-]+/.test(text) ||
+    /\/var\/folders\//.test(text) ||
+    /\/Users\/[^\s/"'`|;&<>]+/.test(text) ||
+    /\/home\/[^\s/"'`|;&<>]+/.test(text) ||
+    /-(?:Users|home)-[A-Za-z0-9._]+-/.test(text)
+  );
+}
+
 export function stripPrivatePaths(text: string): string {
   return text
     .replace(SCRATCH_TOKEN, "")

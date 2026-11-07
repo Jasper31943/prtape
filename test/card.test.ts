@@ -33,8 +33,10 @@ describe("decision text", () => {
   it("strips markdown and empty backticks left by a deleted private path", () => {
     const shown = scrubProse(CJK_DECISION);
     assert.match(shown, /^修好了，第二次執行 npm test/);
-    assert.match(shown, /原因與修正/);
-    assert.match(shown, /完整輸出存在/);
+    assert.match(shown, /我只把預期值改成 4/);
+    assert.match(shown, /add\(a, b\) 回傳 a \+ b/);
+    assert.equal(shown.includes("完整輸出存在"), false);
+    assert.equal(shown.includes("修正後的輸出存在"), false);
     assert.equal(shown.includes("`"), false);
     assert.equal(shown.includes("**"), false);
     assert.equal(shown.includes("patdoe"), false);
@@ -71,7 +73,11 @@ describe("decision text", () => {
         { kind: "test", command: "npm test", outcome: "fail" },
         { kind: "read", path: "math.js" },
         { kind: "edit", path: "math.test.js", action: "edit" },
-        { kind: "test", command: "npm test", outcome: "pass" },
+        {
+          kind: "test",
+          command: "sed -i '' 's/assert.equal(add(2, 2), 5)/assert.equal(add(2, 2), 4)/' math.test.js && npm test",
+          outcome: "pass",
+        },
       ],
     });
     const presented = presentSummary(summary);
@@ -80,9 +86,11 @@ describe("decision text", () => {
     assert.equal(json.includes("aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee"), false);
     assert.equal(json.includes("\"sessionId\""), false);
     assert.equal(presented.summary.sessionId, "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee");
+    assert.equal(presented.summary.decision, "Correct test expectation from 5 to 4; leave add() unchanged.");
     assert.equal(svg.includes("`"), false);
     assert.equal(svg.includes("**"), false);
-    assert.match(svg, /修好了/);
+    assert.match(svg, /Correct test expectation from 5 to 4/);
+    assert.doesNotMatch(svg, /完整輸出存在|return a \+ b|Fix add/);
     assert.doesNotMatch(svg, />commit</);
     assert.deepEqual(trackLabels(svg), ["fail", "read", "edit", "pass"]);
     assertTextInside(svg);

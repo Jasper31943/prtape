@@ -130,7 +130,7 @@ export function parseClaude(text: string, fallbackId = "claude-session"): Sessio
 
 type Pending =
   | { kind: "read"; path?: string }
-  | { kind: "edit"; path: string; action: "edit" | "write" | "delete" }
+  | { kind: "edit"; path: string; action: "edit" | "write" | "delete"; before?: string; after?: string }
   | { kind: "test"; command: string; toolId?: string }
   | { kind: "commit" };
 
@@ -164,10 +164,21 @@ function fileEdit(tool: string, input: Record<string, unknown>, cwd: string | un
   const filePath = toolFilePath(input);
   if (!filePath) return undefined;
   const path = displayPath(filePath, cwd);
-  if (FILE_WRITE_TOOLS.has(tool)) return { kind: "edit", path, action: "write" };
+  const before = shortField(input, "old_string") ?? shortField(input, "old_str");
+  const after = shortField(input, "new_string") ?? shortField(input, "new_str");
+  const hunk = before && after ? { before, after } : {};
+  if (FILE_WRITE_TOOLS.has(tool)) return { kind: "edit", path, action: "write", ...hunk };
   if (FILE_DELETE_TOOLS.has(tool)) return { kind: "edit", path, action: "delete" };
-  if (FILE_EDIT_TOOLS.has(tool)) return { kind: "edit", path, action: "edit" };
+  if (FILE_EDIT_TOOLS.has(tool)) return { kind: "edit", path, action: "edit", ...hunk };
   return undefined;
+}
+
+function shortField(input: Record<string, unknown>, key: string): string | undefined {
+  const value = input[key];
+  if (typeof value !== "string") return undefined;
+  const trimmed = value.trim();
+  if (!trimmed || trimmed.length > 2000) return undefined;
+  return trimmed;
 }
 
 function parseLines(text: string): ClaudeRecord[] {

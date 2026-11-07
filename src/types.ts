@@ -17,7 +17,7 @@ export interface TestRun {
 /** One observed action, in the order it happened. Not a canned phase. */
 export type TimelineEvent =
   | { kind: "read"; path?: string }
-  | { kind: "edit"; path: string; action: FileAction }
+  | { kind: "edit"; path: string; action: FileAction; before?: string; after?: string }
   | { kind: "test"; command: string; outcome: TestOutcome }
   | { kind: "commit" };
 

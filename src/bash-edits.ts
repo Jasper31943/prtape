@@ -19,6 +19,80 @@ const READERS = new Set(["cat", "head", "tail", "less", "more", "bat", "nl"]);
  * Counts in-place `sed -i` / `perl -i` and unquoted `>` / `>>` into the project.
  * Does not count reads, `tee` log capture, or scratch paths.
  */
+export interface BashSubstitution {
+  file: string;
+  old: string;
+  next: string;
+}
+
+/** In-place `sed` replacements, in command order. Used to describe what the edit changed. */
+export function bashSubstitutions(command: string): BashSubstitution[] {
+  const found: BashSubstitution[] = [];
+  for (const segment of splitSegments(command)) {
+    const words = shellWords(stripLead(segment));
+    if ((words[0] ?? "") !== "sed") continue;
+    const files = sedTargets(words).filter((file) => !isScratchPath(file));
+    const script = sedScript(words);
+    const replacement = script ? parseReplacement(script) : undefined;
+    if (!replacement) continue;
+    for (const file of files) found.push({ file, old: replacement.old, next: replacement.next });
+  }
+  return found;
+}
+
+function sedScript(words: string[]): string | undefined {
+  let expression: string | undefined;
+  const positionals: string[] = [];
+  for (let index = 1; index < words.length; index += 1) {
+    const word = words[index] ?? "";
+    if (word === "-e" || word === "--expression") {
+      expression = words[index + 1] ?? "";
+      index += 1;
+      continue;
+    }
+    if (word === "-f" || word === "--file") {
+      index += 1;
+      continue;
+    }
+    if (word === "-i" || word === "--in-place" || word.startsWith("-i") || word.startsWith("--in-place")) {
+      if (word === "-i" || word === "--in-place") {
+        const suffix = words[index + 1];
+        if (suffix === "" || (suffix !== undefined && /^\.[A-Za-z0-9._-]+$/.test(suffix))) index += 1;
+      }
+      continue;
+    }
+    if (word.startsWith("-")) continue;
+    positionals.push(word);
+  }
+  if (expression !== undefined) return expression || undefined;
+  return positionals[0];
+}
+
+function parseReplacement(script: string): { old: string; next: string } | undefined {
+  if (!script.startsWith("s") || script.length < 4) return undefined;
+  const delim = script[1] ?? "";
+  if (!delim || delim === "\\") return undefined;
+  const parts: string[] = [];
+  let current = "";
+  for (let index = 2; index < script.length; index += 1) {
+    const ch = script[index] ?? "";
+    if (ch === "\\" && script[index + 1] === delim) {
+      current += delim;
+      index += 1;
+      continue;
+    }
+    if (ch === delim) {
+      parts.push(current);
+      current = "";
+      if (parts.length === 2) break;
+      continue;
+    }
+    current += ch;
+  }
+  if (parts.length < 2) return undefined;
+  return { old: parts[0] ?? "", next: parts[1] ?? "" };
+}
+
 export function bashFileEdits(command: string): BashEdit[] {
   const edits: BashEdit[] = [];
   for (const event of bashEvents(command)) {

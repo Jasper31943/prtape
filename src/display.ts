@@ -1,6 +1,7 @@
+import { decisionFromEvents } from "./decision.js";
 import type { RedactOptions } from "./redact.js";
 import { redact } from "./redact.js";
-import { stripPrivatePaths } from "./privacy.js";
+import { hasPrivatePath, stripPrivatePaths } from "./privacy.js";
 import { rollupTests, withSteps } from "./summary.js";
 import { displayTestCommand } from "./tests-detect.js";
 import type { SessionSummary, TimelineEvent } from "./types.js";
@@ -55,10 +56,102 @@ export function scrubTitle(text: string, options: RedactOptions = {}): string {
 }
 
 export function scrubProse(text: string, options: RedactOptions = {}): string {
-  const cleaned = cleanDisplayMarkdown(stripPrivatePaths(text));
-  const sentences = cleaned.split(/\n+/).flatMap((line) => line.split(/(?<=[.!?])\s+/));
-  const kept = sentences.map((sentence) => sentence.trim()).filter((sentence) => sentence && !sentenceHasSecret(sentence, options));
+  const withoutFences = text.replace(/```[\s\S]*?```/g, "\n").replace(/~~~[\s\S]*?~~~/g, "\n");
+  const kept = splitSentences(withoutFences)
+    .filter((sentence) => !isPathReferenceSentence(sentence))
+    .map((sentence) => cleanDisplayMarkdown(stripPrivatePaths(sentence)).trim())
+    .filter((sentence) => sentence && !isPathReferenceSentence(sentence) && !sentenceHasSecret(sentence, options));
   return oneLine(kept.join(" "));
+}
+
+function splitSentences(text: string): string[] {
+  const sentences: string[] = [];
+  for (const line of text.split(/\n+/)) {
+    let current = "";
+    const chars = [...line];
+    for (let index = 0; index < chars.length; index += 1) {
+      const ch = chars[index] ?? "";
+      current += ch;
+      const next = chars[index + 1];
+      const cjkEnd = ch === "。" || ch === "！" || ch === "？";
+      const enEnd = (ch === "." || ch === "!" || ch === "?") && (next === undefined || /\s/.test(next));
+      if (!cjkEnd && !enEnd) continue;
+      const trimmed = current.trim();
+      if (trimmed) sentences.push(trimmed);
+      current = "";
+      if (next && /\s/.test(next)) index += 1;
+    }
+    const rest = current.trim();
+    if (rest) sentences.push(rest);
+  }
+  return sentences;
+}
+
+/**
+ * A sentence whose job is to point at a private path. Drop the whole sentence
+ * so deletion does not leave "完整輸出存在 。" or "The full output is saved at ."
+ */
+export function isPathReferenceSentence(sentence: string): boolean {
+  const hadPath = hasPrivatePath(sentence) || /`{2,}|`\s*`/.test(sentence);
+  const core = locatorCore(sentence);
+  if (!core) return hadPath;
+  if (!isLocatorCore(core)) return false;
+  return hadPath || isLocatorCore(core);
+}
+
+function locatorCore(sentence: string): string {
+  return cleanDisplayMarkdown(stripPrivatePaths(sentence))
+    .replace(/`+/g, "")
+    .replace(/[。！？.!?]+/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+const LOCATOR_WORDS = new Set([
+  "the",
+  "a",
+  "an",
+  "full",
+  "output",
+  "outputs",
+  "log",
+  "logs",
+  "file",
+  "files",
+  "checkout",
+  "note",
+  "notes",
+  "is",
+  "are",
+  "was",
+  "were",
+  "saved",
+  "written",
+  "stored",
+  "located",
+  "kept",
+  "live",
+  "lives",
+  "at",
+  "in",
+  "under",
+  "to",
+  "on",
+  "and",
+  "of",
+]);
+
+function isLocatorCore(core: string): boolean {
+  if (/^(?:完整|修正前的|修正後的)?輸出存在$/.test(core)) return true;
+  if (/^(?:日誌|日志|記錄|檔案)(?:在|位於|存在)$/.test(core)) return true;
+  const words = core
+    .replace(/\/[^\s]+/g, " ")
+    .split(/\s+/)
+    .map((word) => word.trim())
+    .filter(Boolean);
+  if (words.length === 0 || words.length > 12) return false;
+  if (words.some((word) => /[\u3400-\u9fff]/.test(word))) return false;
+  return words.every((word) => LOCATOR_WORDS.has(word.toLowerCase().replace(/^[("']+|[)"',]+$/g, "")));
 }
 
 /** Drop markdown markers and empty code spans left behind when a path was deleted. */
@@ -86,10 +179,38 @@ export function scrubCommand(command: string, options: RedactOptions = {}): stri
 }
 
 function scrubDecision(text: string, summary: SessionSummary, options: RedactOptions): string {
-  const clean = scrubProse(text, options).replace(/\.$/, "");
-  if (clean === "Ship the redacted timeline") return LOCKED_DECISION;
-  if (clean.length >= 12 && !MARKER.test(clean)) return scrubProse(text, options);
+  const prose = scrubProse(text, options);
+  const explicit = explicitSentence(prose);
+  if (explicit && explicit.replace(/[。．.]$/u, "") === "Ship the redacted timeline") return LOCKED_DECISION;
+  if (explicit && !isStatusBoilerplate(explicit)) return finishSentence(explicit);
+  const derived = decisionFromEvents(summary);
+  if (derived) return derived;
   return fallbackDecision(summary);
+}
+
+/** One short statement. A multi-sentence status report is not a decision. */
+function explicitSentence(prose: string): string | undefined {
+  const sentences = splitSentences(prose).filter((sentence) => sentence.length >= 12 && sentence.length <= 180);
+  if (sentences.length !== 1) return undefined;
+  return sentences[0];
+}
+
+function isStatusBoilerplate(sentence: string): boolean {
+  return (
+    /^(?:修好了|完成了|done\b)/i.test(sentence) ||
+    /全部通過|測試通過/.test(sentence) ||
+    /\b(?:tests?|suite) (?:passed|passes|pass)\b/i.test(sentence) ||
+    /^fixed the .+ so the (?:suite|tests)/i.test(sentence) ||
+    /^the tests passed\b/i.test(sentence) ||
+    /^原因與修正[:：]?$/.test(sentence) ||
+    /^修正前的失敗結果/.test(sentence)
+  );
+}
+
+function finishSentence(sentence: string): string {
+  const trimmed = sentence.trim();
+  if (/[。！？.!?]$/.test(trimmed)) return trimmed;
+  return `${trimmed}.`;
 }
 
 function fallbackDecision(summary: SessionSummary): string {
@@ -134,7 +255,7 @@ function scrubEvent(event: TimelineEvent, options: RedactOptions): TimelineEvent
   if (event.kind === "edit") {
     const path = scrubPiece(event.path, options);
     if (!path) return undefined;
-    return { ...event, path };
+    return { kind: "edit", path, action: event.action };
   }
   if (event.kind === "test") {
     const command = scrubCommand(event.command, options);

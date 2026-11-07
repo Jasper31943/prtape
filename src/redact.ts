@@ -83,7 +83,7 @@ export function redact(value: string, options: RedactOptions = {}): string {
 
 function redactEvent(event: TimelineEvent, options: RedactOptions): TimelineEvent {
   if (event.kind === "read") return { kind: "read", path: event.path ? redact(event.path, options) : undefined };
-  if (event.kind === "edit") return { ...event, path: redact(event.path, options) };
+  if (event.kind === "edit") return { kind: "edit", path: redact(event.path, options), action: event.action };
   if (event.kind === "test") return { ...event, command: redact(event.command, options) };
   return event;
 }

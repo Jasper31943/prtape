@@ -142,6 +142,7 @@ describe("synthetic fail-then-fix session", () => {
     const svg = renderSvg(summary);
     const json = JSON.stringify(toPublicJson(presented.summary));
     assert.equal(testsPhrase(presented.summary), "npm test · pass");
+    assert.equal(presented.summary.decision, "Correct test expectation from 5 to 4; leave add() unchanged.");
     assert.deepEqual(
       presented.summary.steps
         .filter((step) => step.kind !== "prompt" && step.kind !== "decision")
