@@ -1,6 +1,8 @@
 import type { RedactOptions } from "./redact.js";
 import { redact } from "./redact.js";
+import { stripPrivatePaths } from "./privacy.js";
 import { rollupTests, withSteps } from "./summary.js";
+import { displayTestCommand } from "./tests-detect.js";
 import type { SessionSummary } from "./types.js";
 import { oneLine } from "./text.js";
 
@@ -42,6 +44,8 @@ export function presentSummary(input: SessionSummary, options: RedactOptions = {
       ...input,
       title: title || "Coding-agent session",
       decision,
+      cwd: publicCwd(input.cwd),
+      branch: input.branch ? stripPrivatePaths(input.branch) || undefined : undefined,
       files,
       tests,
     }),
@@ -60,14 +64,18 @@ export function scrubProse(text: string, options: RedactOptions = {}): string {
   const sentences = text
     .split(/\n+/)
     .flatMap((line) => line.split(/(?<=[.!?])\s+/));
-  const kept = sentences.map((sentence) => sentence.trim()).filter((sentence) => sentence && !sentenceHasSecret(sentence, options));
+  const kept = sentences
+    .map((sentence) => stripPrivatePaths(sentence.trim()))
+    .filter((sentence) => sentence && !sentenceHasSecret(sentence, options));
   return oneLine(kept.join(" "));
 }
 
 export function scrubCommand(command: string, options: RedactOptions = {}): string {
-  const pieces = command.split(/\s*(?:&&|\|\||;)\s*/);
+  const displayed = displayTestCommand(command);
+  const source = displayed || command;
+  const pieces = source.split(/\s*(?:&&|\|\||;)\s*/);
   const kept = pieces.map((piece) => scrubCommandPiece(piece, options)).filter((piece) => piece.length > 0);
-  return oneLine(kept.join(" && "));
+  return oneLine(stripPrivatePaths(kept.join(" && ")));
 }
 
 function scrubDecision(text: string, summary: SessionSummary, options: RedactOptions): string {
@@ -106,8 +114,15 @@ function scrubCommandPiece(piece: string, options: RedactOptions): string {
 }
 
 function scrubPiece(text: string, options: RedactOptions): string {
-  if (sentenceHasSecret(text, options)) return "";
-  return oneLine(text);
+  const stripped = stripPrivatePaths(text).replace(/^\/+/, "");
+  if (!stripped || sentenceHasSecret(stripped, options)) return "";
+  return oneLine(stripped);
+}
+
+function publicCwd(cwd: string | undefined): string | undefined {
+  if (!cwd) return undefined;
+  const stripped = stripPrivatePaths(cwd).trim();
+  return stripped || undefined;
 }
 
 function sentenceHasSecret(text: string, options: RedactOptions): boolean {

@@ -36,15 +36,11 @@ export function addFile(
   }
 }
 
+/** Keep every run, in order, so a later pass does not erase the earlier failure. */
 export function addTest(tests: TestRun[], command: string, outcome: TestOutcome): void {
   const key = command.trim();
   if (!key) return;
-  const existing = tests.find((test) => test.command === key);
-  if (!existing) {
-    tests.push({ command: key, outcome });
-    return;
-  }
-  existing.outcome = outcome;
+  tests.push({ command: key, outcome });
 }
 
 export function sessionIsEmpty(summary: SessionSummary): boolean {
@@ -57,8 +53,16 @@ export function sessionIsEmpty(summary: SessionSummary): boolean {
 }
 
 export function rollupTests(tests: TestRun[]): "pass" | "fail" | "unknown" | "none" {
-  if (tests.length === 0) return "none";
-  if (tests.some((test) => test.outcome === "fail")) return "fail";
-  if (tests.some((test) => test.outcome === "pass")) return "pass";
-  return "unknown";
+  const last = tests.at(-1);
+  if (!last) return "none";
+  return last.outcome;
+}
+
+export function sawFailureThenPass(tests: TestRun[]): boolean {
+  let failed = false;
+  for (const test of tests) {
+    if (test.outcome === "fail") failed = true;
+    else if (failed && test.outcome === "pass") return true;
+  }
+  return false;
 }

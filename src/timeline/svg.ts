@@ -2,7 +2,7 @@ import type { SessionSummary } from "../types.js";
 import type { RedactOptions } from "../redact.js";
 import { presentSummary } from "../display.js";
 import { escapeXml } from "../text.js";
-import { rollupTests } from "../summary.js";
+import { rollupTests, sawFailureThenPass } from "../summary.js";
 import { sourceLabel, testsPhrase } from "./format.js";
 
 const WIDTH = 960;
@@ -75,7 +75,7 @@ function activeBeats(summary: SessionSummary): Set<string> {
   const failed = summary.tests.some((test) => test.outcome === "fail");
   const passed = summary.tests.some((test) => test.outcome === "pass");
   if (failed) on.add("fail");
-  if (failed && (passed || summary.files.length > 0)) on.add("fix");
+  if (sawFailureThenPass(summary.tests)) on.add("fix");
   if (passed) on.add("pass");
   return on;
 }

@@ -23,12 +23,12 @@ export function filesDetail(summary: SessionSummary, maxNames = 3): string {
   return extra > 0 ? `${listed} · +${extra}` : listed;
 }
 
-/** Reviewer-facing test line. The command is already scrubbed, so this is `npm test · pass`. */
+/** Reviewer-facing test line. Uses the last run, so a repair is `npm test · pass`. */
 export function testsPhrase(summary: SessionSummary): string {
-  if (!summary.testsRun || summary.tests.length === 0) return "not run";
-  const outcome = rollupTests(summary.tests);
-  const word = outcome === "pass" ? "pass" : outcome === "fail" ? "fail" : "ran";
-  const command = oneLine(summary.tests[0]?.command ?? "");
+  const last = summary.tests.at(-1);
+  if (!last) return "not run";
+  const word = last.outcome === "pass" ? "pass" : last.outcome === "fail" ? "fail" : "ran";
+  const command = oneLine(last.command);
   return command ? `${command} · ${word}` : word;
 }
 

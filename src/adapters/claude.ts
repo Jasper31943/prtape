@@ -1,6 +1,8 @@
 import path from "node:path";
 import type { SessionSummary, TestOutcome } from "../types.js";
 import { FALLBACK_DECISION, FALLBACK_TITLE } from "../types.js";
+import { bashFileEdits } from "../bash-edits.js";
+import { isScratchPath } from "../privacy.js";
 import { addFile, addTest, withSteps } from "../summary.js";
 import { classifyTestOutput, isTestCommand } from "../tests-detect.js";
 import { oneLine } from "../text.js";
@@ -100,8 +102,10 @@ export function parseClaude(text: string, fallbackId = "claude-session"): Sessio
         const name = typeof block.name === "string" ? block.name : "";
         const input = isRecord(block.input) ? block.input : {};
         if (id && toolUses.has(id)) continue;
-        if (id) toolUses.set(id, { name, command: bashCommand(name, input) });
+        const command = bashCommand(name, input);
+        if (id) toolUses.set(id, { name, command });
         collectFileTouch(files, name, input, cwd);
+        if (command) collectBashEdits(files, command, cwd);
       }
     }
   }
@@ -216,6 +220,18 @@ interface ContentBlock {
 function contentBlocks(content: unknown): ContentBlock[] {
   if (!Array.isArray(content)) return [];
   return content.filter(isRecord) as ContentBlock[];
+}
+
+function collectBashEdits(
+  files: SessionSummary["files"],
+  command: string,
+  cwd: string | undefined,
+): void {
+  for (const edit of bashFileEdits(command)) {
+    const display = displayPath(edit.path, cwd);
+    if (!display || isScratchPath(edit.path) || isScratchPath(display)) continue;
+    addFile(files, display, edit.action);
+  }
 }
 
 function collectFileTouch(
