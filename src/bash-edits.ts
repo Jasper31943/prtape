@@ -13,6 +13,7 @@ export type BashEvent =
   | { kind: "commit" };
 
 const READERS = new Set(["cat", "head", "tail", "less", "more", "bat", "nl"]);
+const SEARCHERS = new Set(["rg", "grep", "egrep", "fgrep"]);
 
 /**
  * Project files a Bash command writes, conservatively.
@@ -123,13 +124,16 @@ function segmentEvents(segment: string): BashEvent[] {
   const body = stripLead(segment);
   if (!body) return [];
   const words = shellWords(body);
-  const head = words[0] ?? "";
+  const head = commandBase(words[0] ?? "");
   if (!head || head === "tee") return [];
-  if (head === "git" && words[1] === "commit") return [{ kind: "commit" }];
+  const git = gitEvents(words, head);
+  if (git) return git;
   if (head === "sed") {
-    return sedTargets(words)
-      .filter((file) => !isScratchPath(file))
-      .map((file) => ({ kind: "edit" as const, path: file, action: "edit" as const }));
+    const edits = sedTargets(words).filter((file) => !isScratchPath(file));
+    if (edits.length > 0) {
+      return edits.map((file) => ({ kind: "edit" as const, path: file, action: "edit" as const }));
+    }
+    return reads(sedReadFiles(words));
   }
   if (head === "perl") {
     return perlTargets(words)
@@ -141,26 +145,93 @@ function segmentEvents(segment: string): BashEvent[] {
   if (writes.length > 0) {
     return writes.map((file) => ({ kind: "edit" as const, path: file, action: "write" as const }));
   }
-  if (READERS.has(head)) {
-    const file = readerTarget(words);
-    if (file && isScratchPath(file)) return [];
-    return [{ kind: "read", path: file }];
-  }
+  if (SEARCHERS.has(head)) return reads(searchFiles(words));
+  if (head === "ls") return reads(lsFiles(words));
+  if (READERS.has(head)) return reads(readerFiles(head, words));
   return [];
 }
 
-function readerTarget(words: string[]): string | undefined {
+function commandBase(word: string): string {
+  const base = word.split("/").pop() ?? word;
+  return base;
+}
+
+function gitEvents(words: string[], head: string): BashEvent[] | undefined {
+  if (head !== "git") return undefined;
+  const sub = words[1] ?? "";
+  if (sub === "commit") return [{ kind: "commit" }];
+  if (sub !== "diff" && sub !== "show") return undefined;
+  const files: string[] = [];
+  for (const word of words.slice(2)) {
+    if (word === "--" || word.startsWith("-")) continue;
+    const path = word.includes(":") ? word.slice(word.indexOf(":") + 1) : word;
+    if (looksLikeFile(path)) files.push(path);
+  }
+  return files.length > 0 ? reads(files) : [{ kind: "read" }];
+}
+
+function reads(files: string[]): BashEvent[] {
+  const kept = files.filter((file) => file && !isScratchPath(file));
+  if (kept.length === 0) return [];
+  return kept.map((file) => ({ kind: "read" as const, path: file }));
+}
+
+function readerFiles(head: string, words: string[]): string[] {
   const positionals: string[] = [];
   for (let index = 1; index < words.length; index += 1) {
     const word = words[index] ?? "";
-    if (word === "-n" || word === "-c" || word === "-b") {
+    const takesValue = (head === "head" || head === "tail") && (word === "-n" || word === "-c");
+    if (takesValue) {
       index += 1;
       continue;
     }
     if (word.startsWith("-")) continue;
     positionals.push(word);
   }
-  return positionals.at(-1);
+  return positionals;
+}
+
+function searchFiles(words: string[]): string[] {
+  let flaggedPattern = false;
+  const positionals: string[] = [];
+  for (let index = 1; index < words.length; index += 1) {
+    const word = words[index] ?? "";
+    if (word === "-e" || word === "--regexp" || word === "-f" || word === "-m") {
+      flaggedPattern = word === "-e" || word === "--regexp" || word === "-f";
+      index += 1;
+      continue;
+    }
+    if (word.startsWith("-")) continue;
+    positionals.push(word);
+  }
+  const files = flaggedPattern ? positionals : positionals.slice(1);
+  return files.filter(looksLikeFile);
+}
+
+function lsFiles(words: string[]): string[] {
+  return readerFiles("ls", words).filter(looksLikeFile);
+}
+
+function sedReadFiles(words: string[]): string[] {
+  let expression = false;
+  const positionals: string[] = [];
+  for (let index = 1; index < words.length; index += 1) {
+    const word = words[index] ?? "";
+    if (word === "-e" || word === "--expression" || word === "-f" || word === "--file") {
+      expression = true;
+      index += 1;
+      continue;
+    }
+    if (word.startsWith("-")) continue;
+    positionals.push(word);
+  }
+  const files = expression ? positionals : positionals.slice(1);
+  return files.filter(looksLikeFile);
+}
+
+function looksLikeFile(value: string): boolean {
+  if (!value || value === "." || value === ".." || value.startsWith("-")) return false;
+  return value.includes("/") || value.includes(".");
 }
 
 function remember(edits: BashEdit[], filePath: string, action: BashEdit["action"]): void {

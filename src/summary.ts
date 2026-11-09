@@ -1,3 +1,4 @@
+import { displayTestCommand } from "./tests-detect.js";
 import type { SessionDraft, SessionSummary, Step, TestOutcome, TestRun, TimelineEvent } from "./types.js";
 import { FALLBACK_DECISION, FALLBACK_TITLE } from "./types.js";
 
@@ -6,7 +7,7 @@ const FILE_RANK = { edit: 1, delete: 2, write: 3 } as const;
 export function withSteps(draft: SessionDraft): SessionSummary {
   const title = draft.title.trim() || FALLBACK_TITLE;
   const decision = draft.decision.trim() || FALLBACK_DECISION;
-  const events = draft.events ?? bucketEvents(draft.files, draft.tests);
+  const events = collapseIdenticalFails(draft.events ?? bucketEvents(draft.files, draft.tests));
   const files = draft.events ? filesFrom(events) : draft.files;
   const tests = draft.events ? testsFrom(events) : draft.tests;
   const steps: Step[] = [
@@ -24,6 +25,27 @@ export function withSteps(draft: SessionDraft): SessionSummary {
     testsRun: tests.length > 0,
     steps,
   };
+}
+
+/**
+ * Two adjacent failing runs of the same command, with nothing between them,
+ * are one invocation recorded twice. A later failure after a read or edit stays.
+ */
+function collapseIdenticalFails(events: TimelineEvent[]): TimelineEvent[] {
+  const kept: TimelineEvent[] = [];
+  for (const event of events) {
+    const previous = kept.at(-1);
+    if (previous && sameFailingRun(previous, event)) continue;
+    kept.push(event);
+  }
+  return kept;
+}
+
+function sameFailingRun(previous: TimelineEvent, event: TimelineEvent): boolean {
+  if (previous.kind !== "test" || event.kind !== "test") return false;
+  if (previous.outcome !== "fail" || event.outcome !== "fail") return false;
+  const command = displayTestCommand(event.command);
+  return command !== "" && command === displayTestCommand(previous.command);
 }
 
 /** Files then tests. Used when a parser has no interleaved event list. */

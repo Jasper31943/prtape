@@ -89,6 +89,19 @@ describe("conservative Bash edits", () => {
     assert.deepEqual(bashFileEdits(`echo x > ${TEE}`), []);
     assert.deepEqual(bashFileEdits("echo x > /dev/null"), []);
     assert.deepEqual(bashFileEdits("sed -i '' 's/a/b/' /tmp/claude-9/scratchpad/log"), []);
+    assert.deepEqual(bashFileEdits("sed -n '1,40p' src/catalog.js"), []);
+    assert.deepEqual(bashFileEdits("grep -n slice src/catalog.js"), []);
+    assert.deepEqual(bashEvents("sed -n '1,40p' src/catalog.js"), [{ kind: "read", path: "src/catalog.js" }]);
+    assert.deepEqual(bashEvents("grep -n slice src/catalog.js"), [{ kind: "read", path: "src/catalog.js" }]);
+    assert.deepEqual(bashEvents("rg -n slice src/catalog.js test/catalog.test.js"), [
+      { kind: "read", path: "src/catalog.js" },
+      { kind: "read", path: "test/catalog.test.js" },
+    ]);
+    assert.deepEqual(bashEvents("ls src/catalog.js"), [{ kind: "read", path: "src/catalog.js" }]);
+    assert.deepEqual(bashEvents("ls -la"), []);
+    assert.deepEqual(bashEvents("git diff -- src/catalog.js"), [{ kind: "read", path: "src/catalog.js" }]);
+    assert.deepEqual(bashEvents("git show HEAD:src/catalog.js"), [{ kind: "read", path: "src/catalog.js" }]);
+    assert.deepEqual(bashEvents("head -n 20 src/catalog.js"), [{ kind: "read", path: "src/catalog.js" }]);
   });
 });
 

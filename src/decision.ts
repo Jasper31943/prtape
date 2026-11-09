@@ -20,8 +20,63 @@ export function decisionFromEvents(summary: SessionSummary): string | undefined 
     }
     return `Correct test expectation from ${shift.from} to ${shift.to}.`;
   }
+  const small = expectation.length === 0 ? smallSourceEdit(summary) : undefined;
+  if (expectation.length === 0 && source && small) return preferSpecific(source, small);
   if (expectation.length === 0 && source) return source;
+  if (expectation.length === 0 && small) return small;
   return undefined;
+}
+
+function preferSpecific(source: string, small: string): string {
+  const span = /use (.+) instead of /.exec(small)?.[1] ?? "";
+  const expr = /return (.+)\.$/.exec(source)?.[1] ?? "";
+  if (span && expr.includes(span) && span.length + 8 < expr.length) return small;
+  return source.length <= small.length ? source : small;
+}
+
+function smallSourceEdit(summary: SessionSummary): string | undefined {
+  const edits = summary.events.filter(
+    (event): event is Extract<SessionSummary["events"][number], { kind: "edit" }> =>
+      event.kind === "edit" && !isTestFile(event.path) && Boolean(event.before) && Boolean(event.after),
+  );
+  if (edits.length !== 1) return undefined;
+  const edit = edits[0];
+  if (!edit?.before || !edit.after) return undefined;
+  const change = spanChange(edit.before, edit.after);
+  if (!change) return undefined;
+  const sentence = `In ${edit.path}, use ${change.added} instead of ${change.removed}.`;
+  if (sentence.length > 160) return undefined;
+  return sentence;
+}
+
+function spanChange(before: string, after: string): { removed: string; added: string } | undefined {
+  if (!before || !after || before === after) return undefined;
+  if (before.length > 2000 || after.length > 2000) return undefined;
+  let start = 0;
+  while (start < before.length && start < after.length && before[start] === after[start]) start += 1;
+  let endBefore = before.length;
+  let endAfter = after.length;
+  while (endBefore > start && endAfter > start && before[endBefore - 1] === after[endAfter - 1]) {
+    endBefore -= 1;
+    endAfter -= 1;
+  }
+  let removed = before.slice(start, endBefore);
+  let added = after.slice(start, endAfter);
+  if (!added && removed) {
+    const extra = /[\w.]+$/.exec(before.slice(0, start))?.[0] ?? "";
+    if (!extra) return undefined;
+    removed = extra + removed;
+    added = extra;
+  } else if (!removed && added) {
+    const extra = /[\w.]+$/.exec(after.slice(0, start))?.[0] ?? "";
+    if (!extra) return undefined;
+    added = extra + added;
+    removed = extra;
+  }
+  removed = removed.trim();
+  added = added.trim();
+  if (!removed || !added || removed.length > 80 || added.length > 80) return undefined;
+  return { removed, added };
 }
 
 interface Shift {

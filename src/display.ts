@@ -49,10 +49,26 @@ export function presentSummary(input: SessionSummary, options: RedactOptions = {
 
 export function scrubTitle(text: string, options: RedactOptions = {}): string {
   // Emails never lead the title. A sentence that is only an address is dropped.
-  const clean = scrubProse(text, { ...options, emails: true });
+  const clean = scrubProse(stripPastedWrappers(text), { ...options, emails: true });
   const sentence = clean.split(/(?<=[.!?])\s+/)[0]?.trim() ?? "";
   if (!sentence || isOnlyEmail(sentence)) return "";
   return sentence;
+}
+
+/** Drop Claude Code wrappers such as `<pasted_content id="...">...</pasted_content>`. */
+export function stripPastedWrappers(text: string): string {
+  let current = text;
+  for (let pass = 0; pass < 4; pass += 1) {
+    const next = current.replace(/<([A-Za-z][\w:-]*)\b[^>]*>[\s\S]*?<\/\1>/g, (full) =>
+      full.replace(/^<[^>]*>/, "").replace(/<\/[^>]*>$/, ""),
+    );
+    if (next === current) break;
+    current = next;
+  }
+  return current
+    .replace(/<\/?[A-Za-z][\w:-]*\b[^>]*>/g, " ")
+    .replace(/[ \t]{2,}/g, " ")
+    .trim();
 }
 
 export function scrubProse(text: string, options: RedactOptions = {}): string {
