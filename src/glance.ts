@@ -63,7 +63,7 @@ export function glanceNoOrigin(): string {
 export function glanceRaster(): string {
   return [
     "Image not posted: the timeline PNG could not be rendered.",
-    "Fix: reinstall prtape so the SVG rasterizer is available, then rerun `prtape pr`.",
+    "Fix: reinstall prtape-cli so the SVG rasterizer is available, then rerun `prtape pr`.",
     "Fell back to the text timeline (ASCII + mermaid).",
   ].join("\n");
 }

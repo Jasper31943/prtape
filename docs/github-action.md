@@ -7,8 +7,8 @@ PRtape reads Claude Code sessions from the developer's machine (`~/.claude/proje
 Run it locally instead:
 
 ```bash
-npx prtape pr --dry-run
-npx prtape pr
+npx prtape-cli pr --dry-run
+npx prtape-cli pr
 ```
 
 `--dry-run` does not call `gh`. A real `prtape pr` comments on the pull request for the current branch when `gh` is installed and authenticated.

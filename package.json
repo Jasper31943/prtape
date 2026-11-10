@@ -1,5 +1,5 @@
 {
-  "name": "prtape",
+  "name": "prtape-cli",
   "version": "0.1.0",
   "description": "One image on the PR showing what your AI agent did.",
   "license": "MIT",
@@ -14,7 +14,8 @@
   },
   "type": "module",
   "bin": {
-    "prtape": "./dist/cli.js"
+    "prtape": "./dist/cli.js",
+    "prtape-cli": "./dist/cli.js"
   },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",

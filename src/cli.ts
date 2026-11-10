@@ -24,6 +24,10 @@ interface Args {
 const HELP = `PRtape puts one image on the pull request.
 See what your AI agent actually did. What the agent did, on the PR.
 
+Install:
+  npm i -g prtape-cli
+  npx prtape-cli pr
+
 Usage:
   prtape pr [options]
 

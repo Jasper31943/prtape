@@ -5,8 +5,10 @@
 See what your AI agent actually did.
 
 ```bash
-npx prtape pr
+npx prtape-cli pr
 ```
+
+After a global install (`npm i -g prtape-cli`) the command is `prtape`.
 
 - Reads the newest Claude Code session on your machine.
 - Posts one redacted image on the pull request: files touched, tests, and the decision.
@@ -15,13 +17,13 @@ npx prtape pr
 ## Happy path
 
 ```bash
-npm install -g prtape
-npx prtape pr
-npx prtape pr --dry-run
-npx prtape pr --json --dry-run
+npm i -g prtape-cli
+npx prtape-cli pr
+npx prtape-cli pr --dry-run
+npx prtape-cli pr --json --dry-run
 ```
 
-Run it on the git branch that already has the pull request. One command, `npx prtape pr`, reads the newest Claude Code session, posts a comment that leads with the timeline PNG, and does not ask you to upload anything yourself. `--dry-run` prints that comment and does not push or comment. If `gh` is missing, not authenticated, or the PNG push is denied, PRtape prints what failed and how to fix it, then uses a text timeline instead. It does not claim an image was posted.
+Run it on the git branch that already has the pull request. One command, `npx prtape-cli pr`, reads the newest Claude Code session, posts a comment that leads with the timeline PNG, and does not ask you to upload anything yourself. `--dry-run` prints that comment and does not push or comment. If `gh` is missing, not authenticated, or the PNG push is denied, PRtape prints what failed and how to fix it, then uses a text timeline instead. It does not claim an image was posted.
 
 From a checkout, before the package is on npm: `npx tsx src/cli.ts pr --dry-run`.
 
@@ -101,7 +103,7 @@ npx tsx src/cli.ts pr --dry-run --session fixtures/claude-session.jsonl
 
 Fixtures under `fixtures/` are synthetic. The strings that look like keys are canaries so tests can prove they never appear in the comment, the SVG, or the JSON.
 
-The npm package name is `prtape` (`bin` points at `dist/cli.js`). This checkout does not publish it.
+The npm package name is `prtape-cli` (`bin` points at `dist/cli.js`). This checkout does not publish it.
 
 ## v0.2
 
@@ -120,8 +122,8 @@ There is no workflow in v0.1. Sessions live on the developer machine, so a hoste
 PRtape 把本機的 Claude Code 工作階段整理成一張預設已遮罩機密的 PR 圖，讓審查者大約五秒內看懂：動了哪些檔案、有沒有跑測試，以及一行決策摘要。目前只支援 Claude Code。
 
 ```bash
-npx prtape pr
-npx prtape pr --dry-run
+npx prtape-cli pr
+npx prtape-cli pr --dry-run
 ```
 
 原始工作階段不會寫進專案目錄。PNG 放在 `refs/prtape/<head>`，不會進 main。公開倉庫的未登入讀者也看得到 `github.com/.../raw/<sha>/timeline.png`；私人倉庫則不同，未登入、郵件通知與部分手機客戶端可能只看到破圖，有權限的協作者通常看得到。Cursor 支援與 Claude Code `SessionEnd` hook 留到 v0.2。
