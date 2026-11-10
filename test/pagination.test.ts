@@ -14,8 +14,8 @@ import { renderSvg } from "../src/timeline/svg.js";
 import { toPublicJson } from "../src/run.js";
 import { fixture, trackLabels } from "./helpers.js";
 
-const REASON = "dropped the last record on a page";
-const DECISION = `${REASON}: use stored.length, not stored.length - 1.`;
+const DECISION = "Fix off-by-one that dropped the last record on a page";
+const FALLBACK = "In src/catalog.js, use stored.length instead of stored.length - 1.";
 
 describe("synthetic pagination session", () => {
   const raw = fixture("synthetic-pagination.jsonl");
@@ -50,8 +50,9 @@ describe("synthetic pagination session", () => {
     );
     assert.equal(presented.summary.title, "Fix the page slice so the last item is included.");
     assert.equal(presented.summary.decision, DECISION);
-    assert.equal(raw.includes(REASON), true);
-    assert.equal(presented.summary.decision.includes("last page dropped"), false);
+    assert.equal(presented.summary.decision.includes(": use stored.length"), false);
+    assert.equal(normalizeSpace(raw).includes(normalizeSpace(DECISION)), true);
+    assertDecisionWordsAreInSession(presented.summary.decision, raw, FALLBACK);
     assert.match(renderComment(summary), /6 failed → 13\/13 pass/);
     const published = toPublicJson(presented.summary) as { steps: { kind: string; path?: string }[] };
     assert.equal(published.steps.some((step) => step.kind === "read" && !step.path), false);
@@ -62,7 +63,7 @@ describe("synthetic pagination session", () => {
     assert.match(svg, /#7A8FB0/);
     assert.doesNotMatch(svg, /#33445A/);
     assert.deepEqual(trackLabels(svg), ["fail", "read", "edit", "pass", "commit"]);
-    assert.match(svg, /use stored\.length, not stored\.length - 1/);
+    assert.match(svg, /Fix off-by-one that dropped the last record on a page/);
     const json = JSON.stringify(toPublicJson(presented.summary));
     assert.equal(json.includes("\"sessionId\""), false);
     assert.equal(json.includes("synthetic-pagination"), false);
@@ -70,6 +71,19 @@ describe("synthetic pagination session", () => {
     assert.equal(json.includes(DECISION), true);
   });
 });
+
+function normalizeSpace(value: string): string {
+  return value.replace(/\s+/g, " ").trim();
+}
+
+function assertDecisionWordsAreInSession(decision: string, session: string, fallback: string): void {
+  const normalizedSession = normalizeSpace(session);
+  for (const sentence of decision.split(/(?<=[.!?])\s+/)) {
+    const words = normalizeSpace(sentence).replace(/[.!?]+$/g, "");
+    if (!words || normalizeSpace(sentence) === normalizeSpace(fallback)) continue;
+    assert.equal(normalizedSession.includes(words), true, words);
+  }
+}
 
 describe("demo label", () => {
   it("draws an outlined Demo project pill and a plain comment tag only when asked", () => {

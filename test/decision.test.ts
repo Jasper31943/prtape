@@ -84,6 +84,32 @@ describe("evidence-based decision", () => {
     assert.match(presented.summary.decision, /Edited 2 files and the tests passed/);
   });
 
+  it("uses the unwrapped commit subject and does not splice a wrapped line", () => {
+    const message = [
+      "Fix off-by-one that dropped the last record on a page",
+      "",
+      "The end index was clamped to stored.length - 1, but slice's end is",
+      "exclusive, so the final catalog record was never returned.",
+    ].join("\n");
+    const presented = presentSummary(
+      session("npm test", "Edited the catalog slice and the tests passed.", [
+        {
+          kind: "edit",
+          path: "src/catalog.js",
+          action: "edit",
+          before: "stored.slice(0, stored.length - 1)",
+          after: "stored.slice(0, stored.length)",
+        },
+        { kind: "commit", message },
+      ]),
+    );
+    assert.equal(presented.summary.decision, "Fix off-by-one that dropped the last record on a page");
+    assert.equal(presented.summary.decision.includes(": use stored.length"), false);
+    assert.equal(presented.summary.decision.includes("slice's end is:"), false);
+    const normalized = message.replace(/\s+/g, " ");
+    assert.equal(normalized.includes(presented.summary.decision), true);
+  });
+
   it("keeps a short explicit decision that is not status boilerplate", () => {
     const presented = presentSummary(session("npm test", "Ship the redacted timeline."));
     assert.equal(presented.summary.decision, "Ship the redacted timeline; secrets stay off the PR.");

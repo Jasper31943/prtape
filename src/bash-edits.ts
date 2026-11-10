@@ -172,7 +172,7 @@ function commandBase(word: string): string {
 function gitEvents(words: string[], head: string): BashEvent[] | undefined {
   if (head !== "git") return undefined;
   const sub = words[1] ?? "";
-  if (sub === "commit") return [{ kind: "commit", message: commitMessage(words) }];
+  if (sub === "commit") return [{ kind: "commit", message: commitMessages(words) }];
   if (sub !== "diff" && sub !== "show" && sub !== "status" && sub !== "log") return undefined;
   const files: string[] = [];
   for (const word of words.slice(2)) {
@@ -183,15 +183,17 @@ function gitEvents(words: string[], head: string): BashEvent[] | undefined {
   return files.length > 0 ? reads(files) : [{ kind: "read" }];
 }
 
-function commitMessage(words: string[]): string | undefined {
+function commitMessages(words: string[]): string | undefined {
+  const messages: string[] = [];
   for (let index = 0; index < words.length; index += 1) {
     const word = words[index] ?? "";
-    if (word === "-m" || word === "--message") {
-      const message = words[index + 1]?.trim();
-      return message || undefined;
-    }
+    if (word !== "-m" && word !== "--message") continue;
+    const message = words[index + 1]?.trim();
+    if (message) messages.push(message);
+    index += 1;
   }
-  return undefined;
+  if (messages.length === 0) return undefined;
+  return messages.join("\n\n");
 }
 
 function reads(files: string[]): BashEvent[] {

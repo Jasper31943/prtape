@@ -44,45 +44,68 @@ function smallSourceEdit(summary: SessionSummary): string | undefined {
   if (!edit?.before || !edit.after) return undefined;
   const change = spanChange(edit.before, edit.after);
   if (!change) return undefined;
-  const why = evidenceReason(summary);
-  const sentence = why
-    ? `${why}: use ${change.added}, not ${change.removed}.`
-    : `In ${edit.path}, use ${change.added} instead of ${change.removed}.`;
+  const extracted = sessionSentence(summary);
+  if (extracted) return capitalizeFirst(extracted);
+  const sentence = `In ${edit.path}, use ${change.added} instead of ${change.removed}.`;
   if (sentence.length > 180) return undefined;
   return sentence;
 }
 
-/** A short clause copied from a commit message, failing test name, or assistant line. */
-function evidenceReason(summary: SessionSummary): string | undefined {
-  for (const event of summary.events) {
-    if (event.kind !== "commit" || !event.message) continue;
-    const clause = reasonClause(event.message);
-    if (clause) return clause;
+/**
+ * A complete sentence copied from a commit message, a failing test name, or
+ * the assistant text. Hard-wrapped lines are joined before the split, and the
+ * result is never glued to a synthesized clause.
+ */
+function sessionSentence(summary: SessionSummary): string | undefined {
+  const sources = [
+    ...summary.events.flatMap((event) => (event.kind === "commit" && event.message ? [event.message] : [])),
+    ...summary.events.flatMap((event) => (event.kind === "test" && event.failedName ? [event.failedName] : [])),
+    summary.decision,
+  ];
+  for (const source of sources) {
+    const sentence = firstCompleteSentence(source);
+    if (!sentence || isStatusReason(sentence)) continue;
+    if (normalizeSpace(source).includes(normalizeSpace(sentence))) return sentence;
   }
-  for (const event of summary.events) {
-    if (event.kind === "test" && event.failedName && isReasonSpan(event.failedName)) return event.failedName;
-  }
-  const prose = reasonClause(summary.decision);
-  if (prose && summary.decision.includes(prose) && !isStatusReason(prose)) return prose;
   return undefined;
 }
 
-function reasonClause(message: string): string | undefined {
-  const pieces = message
-    .split(/\n+|(?<=[.!?])\s+|:\s+/)
-    .map((piece) => piece.trim().replace(/^[.!?]+|[.!?]+$/g, "").trim())
-    .filter((piece) => piece.length >= 12 && piece.length <= 90 && message.includes(piece));
-  const descriptive = pieces.find((piece) => !/^(?:fix|update|change|commit)\b/i.test(piece));
-  return descriptive ?? pieces[0];
+function firstCompleteSentence(message: string): string | undefined {
+  const unwrapped = unwrapHardBreaks(message);
+  for (const paragraph of unwrapped.split("\n")) {
+    const parts = paragraph.split(/(?<=[.!?])\s+/);
+    for (const part of parts) {
+      const sentence = part.trim();
+      if (sentence.length < 12 || sentence.length > 180) continue;
+      if (normalizeSpace(unwrapped).includes(normalizeSpace(sentence))) return sentence;
+    }
+  }
+  return undefined;
 }
 
-function isReasonSpan(text: string): boolean {
+/** Join a line that was wrapped in the editor. A blank line stays a paragraph break. */
+function unwrapHardBreaks(message: string): string {
+  return message
+    .replace(/\r\n/g, "\n")
+    .trim()
+    .split(/\n[ \t]*\n/)
+    .map((paragraph) => paragraph.replace(/[ \t]*\n[ \t]*/g, " ").replace(/[ \t]+/g, " ").trim())
+    .filter(Boolean)
+    .join("\n");
+}
+
+function normalizeSpace(value: string): string {
+  return value.replace(/\s+/g, " ").trim();
+}
+
+function capitalizeFirst(text: string): string {
   const trimmed = text.trim();
-  return trimmed.length >= 12 && trimmed.length <= 90 && trimmed.includes(" ") && !/^(?:fix|update|change)\b/i.test(trimmed);
+  if (!trimmed) return trimmed;
+  return trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
 }
 
 function isStatusReason(text: string): boolean {
-  return /\b(?:tests?|suite) (?:passed|passes|failed)\b/i.test(text) || /全部通過|測試通過/.test(text);
+  return /\b(?:tests?|suite) (?:passed|passes|failed)\b/i.test(text) || /全部通過|測試通過|edited \d+ file/i.test(text);
 }
 
 function spanChange(before: string, after: string): { removed: string; added: string } | undefined {
