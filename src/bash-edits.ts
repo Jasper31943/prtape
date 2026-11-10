@@ -173,7 +173,7 @@ function gitEvents(words: string[], head: string): BashEvent[] | undefined {
   if (head !== "git") return undefined;
   const sub = words[1] ?? "";
   if (sub === "commit") return [{ kind: "commit" }];
-  if (sub !== "diff" && sub !== "show") return undefined;
+  if (sub !== "diff" && sub !== "show" && sub !== "status" && sub !== "log") return undefined;
   const files: string[] = [];
   for (const word of words.slice(2)) {
     if (word === "--" || word.startsWith("-")) continue;
@@ -304,18 +304,38 @@ function splitJoined(command: string): { text: string; join: Join }[] {
   return parts;
 }
 
-/** Expand a simple `*` / `?` read against concrete paths already seen in the session. */
-export function resolveReadGlobs(events: TimelineEvent[]): TimelineEvent[] {
-  const known = events.flatMap((event) =>
-    (event.kind === "read" || event.kind === "edit") && event.path && !isGlob(event.path) ? [event.path] : [],
-  );
+/** Repo-relative paths printed in tool output, such as `ls` lines or `cat` file headers. */
+export function pathsInText(text: string): string[] {
+  const found: string[] = [];
+  const pattern = /(?:^|[\s"'`(=>])((?:[A-Za-z0-9_-]+\/)+[A-Za-z0-9_.-]+\.[A-Za-z0-9]+)(?=$|[\s"'`),:<])/g;
+  for (const match of text.matchAll(pattern)) {
+    const filePath = match[1] ?? "";
+    if (!filePath || filePath.includes("..") || isGlob(filePath)) continue;
+    const directories = filePath.split("/").slice(0, -1);
+    if (directories.some((part) => part.includes("."))) continue;
+    if (!found.includes(filePath)) found.push(filePath);
+  }
+  return found;
+}
+
+/** Expand a simple `*` / `?` read against concrete paths evidenced in the session. */
+export function resolveReadGlobs(events: TimelineEvent[], extra: string[] = []): TimelineEvent[] {
+  const known = [
+    ...extra.filter((filePath) => filePath && !filePath.startsWith("/") && !filePath.includes("..") && !isGlob(filePath)),
+    ...events.flatMap((event) =>
+      (event.kind === "read" || event.kind === "edit") && event.path && !isGlob(event.path) ? [event.path] : [],
+    ),
+  ];
   const expanded: TimelineEvent[] = [];
   for (const event of events) {
     if (event.kind !== "read" || !event.path || !isGlob(event.path)) {
       expanded.push(event);
       continue;
     }
-    const matches = known.filter((path) => globMatch(event.path ?? "", path));
+    const matches: string[] = [];
+    for (const path of known) {
+      if (!matches.includes(path) && globMatch(event.path ?? "", path)) matches.push(path);
+    }
     if (matches.length === 0) {
       expanded.push(event);
       continue;

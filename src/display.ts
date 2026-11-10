@@ -51,17 +51,30 @@ export function scrubTitle(text: string, options: RedactOptions = {}): string {
   // Emails never lead the title. A sentence that is only an address is dropped.
   const clean = scrubProse(stripPastedWrappers(text), { ...options, emails: true });
   const sentences = splitSentences(clean).filter((sentence) => sentence && !isOnlyEmail(sentence));
-  const task = sentences.find((sentence) => !isMetaInstruction(sentence)) ?? sentences[0] ?? "";
+  const task =
+    sentences.find((sentence) => isTaskSentence(sentence)) ??
+    sentences.find((sentence) => !isMetaInstruction(sentence)) ??
+    sentences[0] ??
+    "";
   return task;
 }
 
-/** Language and format preambles Claude Code puts ahead of the task. */
+const TASK_VERBS = /^(?:fix|make|add|find|implement|update|run|change|correct|strip|remove|keep)\b/i;
+
+function isTaskSentence(sentence: string): boolean {
+  return TASK_VERBS.test(sentence.trim());
+}
+
+/** Language, format, and disclaimer lines Claude Code puts ahead of the task. */
 function isMetaInstruction(sentence: string): boolean {
   const text = sentence.trim().replace(/[.!?。]+$/g, "");
   return (
     /^(?:respond|answer|reply)\b(?:\s+\w+){0,6}\s+in\b/i.test(text) ||
     /^be concise\b/i.test(text) ||
-    /^keep (?:it|this|your (?:answer|response)) (?:brief|short|concise)\b/i.test(text)
+    /^keep (?:it|this|your (?:answer|response)) (?:brief|short|concise)\b/i.test(text) ||
+    /^this is an intentional\b/i.test(text) ||
+    /\bnot a real\b.+\b(?:incident|customer|bug|session)\b/i.test(text) ||
+    /^(?:note|context)\s*:/i.test(text)
   );
 }
 

@@ -35,8 +35,11 @@ describe("synthetic pagination session", () => {
       "read:src",
       "read:test",
       "read:src/catalog.js",
+      "read:src/page-query.js",
       "edit",
       "pass",
+      "read:",
+      "read:",
       "commit",
     ]);
     assert.deepEqual(
@@ -105,6 +108,10 @@ describe("pasted title wrappers", () => {
     );
     assert.equal(
       scrubTitle("Respond entirely in English. Fix the page slice so the last item is included."),
+      "Fix the page slice so the last item is included.",
+    );
+    assert.equal(
+      scrubTitle("This is an intentional AgentTape demo, not a real customer incident. Fix the page slice so the last item is included."),
       "Fix the page slice so the last item is included.",
     );
     assert.equal(scrubTitle("Be concise. Answer in English."), "Be concise.");

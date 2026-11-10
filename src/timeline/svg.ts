@@ -70,17 +70,41 @@ export function renderSvg(input: SessionSummary, options: RedactOptions = {}): s
   return parts.join("\n");
 }
 
-/** Observed beats in session order. Consecutive repeats collapse. Nothing is invented. */
+/**
+ * Headline phases. The step list keeps every event. The track drops setup
+ * reads before the first test, verification reads after the last edit, and
+ * pathless reads such as a bare `git diff`.
+ */
 function observedBeats(summary: SessionSummary): { label: string; color: string }[] {
   const beats: { label: string; color: string }[] = [];
-  for (const event of summary.events) {
-    const label = beatLabel(event);
-    if (!label || beats.at(-1)?.label === label) continue;
+  for (const label of phaseLabels(summary.events)) {
+    if (beats.at(-1)?.label === label) continue;
     const color = BEAT_COLOR[label];
     if (!color) continue;
     beats.push({ label, color });
   }
   return beats;
+}
+
+function phaseLabels(events: TimelineEvent[]): string[] {
+  const hasTest = events.some((event) => event.kind === "test" && (event.outcome === "fail" || event.outcome === "pass"));
+  let firstTest = -1;
+  let lastEdit = -1;
+  events.forEach((event, index) => {
+    if (firstTest < 0 && event.kind === "test" && (event.outcome === "fail" || event.outcome === "pass")) firstTest = index;
+    if (event.kind === "edit") lastEdit = index;
+  });
+  const labels: string[] = [];
+  events.forEach((event, index) => {
+    if (event.kind === "read") {
+      if (!event.path) return;
+      if (hasTest && index < firstTest) return;
+      if (lastEdit >= 0 && index > lastEdit) return;
+    }
+    const label = beatLabel(event);
+    if (label) labels.push(label);
+  });
+  return labels;
 }
 
 function beatLabel(event: TimelineEvent): string | undefined {

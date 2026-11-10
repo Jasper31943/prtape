@@ -23,13 +23,13 @@ describe("timeline snapshots", () => {
     assert.equal(svg.match(/<linearGradient /g)?.length, 1);
     assert.match(svg, /width="960"/);
     assert.match(svg, /height="480"/);
-    assert.match(svg, />read</);
+    assert.doesNotMatch(svg, />read</);
     assert.match(svg, />edit</);
     assert.doesNotMatch(svg, />fail</);
     assert.doesNotMatch(svg, />fix</);
     assert.match(svg, />pass</);
     assert.doesNotMatch(svg, />commit</);
-    assert.deepEqual(trackLabels(svg), ["read", "edit", "pass"]);
+    assert.deepEqual(trackLabels(svg), ["edit", "pass"]);
     assert.match(svg, /redacted ×16/);
     assert.doesNotMatch(svg, /masked ×/);
     assert.match(svg, /FILES TOUCHED/);
@@ -39,7 +39,6 @@ describe("timeline snapshots", () => {
     assert.match(svg, /#0B0F14/);
     assert.match(svg, /#39FF88/);
     assert.match(svg, /#22D3EE/);
-    assert.match(svg, /#33445A/);
     assert.match(svg, /Ship the redacted timeline; secrets stay off the PR\./);
     assert.match(svg, /redacted before posting · raw session never uploaded/);
     assert.doesNotMatch(svg, /masked ×\d+ · raw session/);

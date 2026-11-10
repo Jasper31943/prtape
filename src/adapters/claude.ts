@@ -1,7 +1,7 @@
 import path from "node:path";
 import type { SessionSummary, TestOutcome, TimelineEvent } from "../types.js";
 import { FALLBACK_DECISION, FALLBACK_TITLE } from "../types.js";
-import { bashEvents, resolveReadGlobs } from "../bash-edits.js";
+import { bashEvents, pathsInText, resolveReadGlobs } from "../bash-edits.js";
 import { withSteps } from "../summary.js";
 import { classifyTestOutput } from "../tests-detect.js";
 import { oneLine } from "../text.js";
@@ -107,7 +107,16 @@ export function parseClaude(text: string, fallbackId = "claude-session"): Sessio
   }
 
   const results = collectToolResults(records);
-  const events = resolveReadGlobs(pending.map((item) => resolveEvent(item, results)));
+  const evidenced: string[] = [];
+  for (const result of results.values()) {
+    for (const filePath of pathsInText(result.text)) {
+      if (!evidenced.includes(filePath)) evidenced.push(filePath);
+    }
+  }
+  const events = resolveReadGlobs(
+    pending.map((item) => resolveEvent(item, results)),
+    evidenced,
+  );
 
   const summaryText = pickSummary(records, activeIds);
   const title = prompts[0] ? oneLine(prompts[0]) : FALLBACK_TITLE;

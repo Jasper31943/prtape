@@ -163,7 +163,7 @@ describe("synthetic fail-then-fix session", () => {
         .map((step) => (step.kind === "test" ? step.outcome : step.kind)),
       ["read", "fail", "read", "read", "read", "edit", "read", "pass"],
     );
-    assert.deepEqual(trackLabels(svg), ["read", "fail", "read", "edit", "read", "pass"]);
+    assert.deepEqual(trackLabels(svg), ["fail", "read", "edit", "pass"]);
     assert.match(comment, /npm test · pass/);
     assert.match(comment, /· fail/);
     assert.match(comment, /· pass/);
