@@ -103,7 +103,7 @@ npx tsx src/cli.ts pr --dry-run --session fixtures/claude-session.jsonl
 
 Fixtures under `fixtures/` are synthetic. The strings that look like keys are canaries so tests can prove they never appear in the comment, the SVG, or the JSON.
 
-The npm package name is `prtape-cli` (`bin` points at `dist/cli.js`). This checkout does not publish it.
+The package is published on npm as `prtape-cli` (`bin` points at `dist/cli.js`).
 
 ## v0.2
 
