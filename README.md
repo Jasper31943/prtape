@@ -40,10 +40,6 @@ On the happy path the comment leads with the image, then the decision and a shor
 | Tests | yes · pass |
 ```
 
-The preview below is the SVG checked into this repo, not the orphan ref:
-
-![PRtape timeline preview](docs/preview.svg)
-
 ## Orphan ref
 
 `prtape pr` builds a parentless commit whose tree is only `timeline.png`, using `git hash-object`, `git mktree`, and `git commit-tree` in a temp repository. It then runs:
