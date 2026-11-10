@@ -15,11 +15,15 @@ export interface TestRun {
 }
 
 /** One observed action, in the order it happened. Not a canned phase. */
-export type TimelineEvent =
+export type TimelineEvent = (
   | { kind: "read"; path?: string }
   | { kind: "edit"; path: string; action: FileAction; before?: string; after?: string }
   | { kind: "test"; command: string; outcome: TestOutcome }
-  | { kind: "commit" };
+  | { kind: "commit" }
+) & {
+  /** Bash tool call that produced this event. Not shown on public steps. */
+  batch?: string;
+};
 
 export type Step =
   | { kind: "prompt"; text: string }

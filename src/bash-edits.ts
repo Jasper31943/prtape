@@ -1,5 +1,6 @@
 import { isScratchPath } from "./privacy.js";
 import { isTestCommand } from "./tests-detect.js";
+import type { TimelineEvent } from "./types.js";
 
 export interface BashEdit {
   path: string;
@@ -104,20 +105,29 @@ export function bashFileEdits(command: string): BashEdit[] {
 
 /**
  * Left-to-right actions inside one Bash command.
- * A test command drops setup reads (`cat package.json && npm test`) so the
- * test stays the event. Edits keep their place relative to that test
- * (`sed -i file && npm test` is an edit, then the test).
+ * Reads joined with `;` or `&&` before a test stay, in order.
+ * A pipe into the test (`cat x | npm test`) is setup, not its own beat.
  */
 export function bashEvents(command: string): BashEvent[] {
+  const parts = splitJoined(command);
+  const parsed = parts.map((part) => ({ join: part.join, events: segmentEvents(part.text) }));
   const events: BashEvent[] = [];
-  let sawTest = false;
-  for (const segment of splitSegments(command)) {
-    for (const event of segmentEvents(segment)) {
-      if (event.kind === "test") sawTest = true;
+  for (let index = 0; index < parsed.length; index += 1) {
+    for (const event of parsed[index]?.events ?? []) {
+      if (event.kind === "read" && pipedIntoTest(parsed, index)) continue;
       events.push(event);
     }
   }
-  return sawTest ? events.filter((event) => event.kind !== "read") : events;
+  return events;
+}
+
+function pipedIntoTest(parsed: { join: Join; events: BashEvent[] }[], index: number): boolean {
+  let cursor = index;
+  while (cursor + 1 < parsed.length && parsed[cursor + 1]?.join === "|") {
+    cursor += 1;
+    if (parsed[cursor]?.events.some((event) => event.kind === "test")) return true;
+  }
+  return false;
 }
 
 function segmentEvents(segment: string): BashEvent[] {
@@ -146,7 +156,10 @@ function segmentEvents(segment: string): BashEvent[] {
     return writes.map((file) => ({ kind: "edit" as const, path: file, action: "write" as const }));
   }
   if (SEARCHERS.has(head)) return reads(searchFiles(words));
-  if (head === "ls") return reads(lsFiles(words));
+  if (head === "ls") {
+    const names = readerFiles("ls", words).filter((name) => name !== "." && name !== "..");
+    return names.length > 0 ? reads(names) : [];
+  }
   if (READERS.has(head)) return reads(readerFiles(head, words));
   return [];
 }
@@ -208,10 +221,6 @@ function searchFiles(words: string[]): string[] {
   return files.filter(looksLikeFile);
 }
 
-function lsFiles(words: string[]): string[] {
-  return readerFiles("ls", words).filter(looksLikeFile);
-}
-
 function sedReadFiles(words: string[]): string[] {
   let expression = false;
   const positionals: string[] = [];
@@ -241,10 +250,23 @@ function remember(edits: BashEdit[], filePath: string, action: BashEdit["action"
   edits.push({ path: cleaned, action });
 }
 
+type Join = "start" | "&&" | "||" | ";" | "|";
+
 function splitSegments(command: string): string[] {
-  const parts: string[] = [];
+  return splitJoined(command).map((part) => part.text);
+}
+
+function splitJoined(command: string): { text: string; join: Join }[] {
+  const parts: { text: string; join: Join }[] = [];
   let current = "";
+  let join: Join = "start";
   let quote: "'" | '"' | null = null;
+  const push = (next: Join) => {
+    const text = current.trim();
+    if (text) parts.push({ text, join });
+    current = "";
+    join = next;
+  };
   for (let index = 0; index < command.length; index += 1) {
     const ch = command[index] ?? "";
     if (quote) {
@@ -258,21 +280,65 @@ function splitSegments(command: string): string[] {
       continue;
     }
     const next = command[index + 1];
-    if ((ch === "&" && next === "&") || (ch === "|" && next === "|")) {
-      parts.push(current);
-      current = "";
+    if (ch === "&" && next === "&") {
+      push("&&");
       index += 1;
       continue;
     }
-    if (ch === ";" || ch === "|" || ch === "\n") {
-      parts.push(current);
-      current = "";
+    if (ch === "|" && next === "|") {
+      push("||");
+      index += 1;
+      continue;
+    }
+    if (ch === "|") {
+      push("|");
+      continue;
+    }
+    if (ch === ";" || ch === "\n") {
+      push(";");
       continue;
     }
     current += ch;
   }
-  parts.push(current);
-  return parts.map((part) => part.trim()).filter((part) => part.length > 0);
+  push("start");
+  return parts;
+}
+
+/** Expand a simple `*` / `?` read against concrete paths already seen in the session. */
+export function resolveReadGlobs(events: TimelineEvent[]): TimelineEvent[] {
+  const known = events.flatMap((event) =>
+    (event.kind === "read" || event.kind === "edit") && event.path && !isGlob(event.path) ? [event.path] : [],
+  );
+  const expanded: TimelineEvent[] = [];
+  for (const event of events) {
+    if (event.kind !== "read" || !event.path || !isGlob(event.path)) {
+      expanded.push(event);
+      continue;
+    }
+    const matches = known.filter((path) => globMatch(event.path ?? "", path));
+    if (matches.length === 0) {
+      expanded.push(event);
+      continue;
+    }
+    for (const path of matches) expanded.push({ ...event, path });
+  }
+  return expanded;
+}
+
+function isGlob(filePath: string): boolean {
+  return filePath.includes("*") || filePath.includes("?");
+}
+
+function globMatch(pattern: string, filePath: string): boolean {
+  let source = "^";
+  for (const ch of pattern) {
+    if (ch === "*") source += "[^/]*";
+    else if (ch === "?") source += "[^/]";
+    else if ("\\.^$+()[]{}|".includes(ch)) source += `\\${ch}`;
+    else source += ch;
+  }
+  source += "$";
+  return new RegExp(source).test(filePath);
 }
 
 function stripLead(segment: string): string {

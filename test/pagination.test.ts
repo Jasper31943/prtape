@@ -6,6 +6,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { parseClaude } from "../src/adapters/claude.js";
+import { resolveReadGlobs } from "../src/bash-edits.js";
 import { presentSummary, scrubTitle } from "../src/display.js";
 import { withSteps } from "../src/summary.js";
 import { renderSvg } from "../src/timeline/svg.js";
@@ -30,9 +31,9 @@ describe("synthetic pagination session", () => {
       .map((step) => (step.kind === "test" ? step.outcome : step.kind === "read" ? `read:${step.path ?? ""}` : step.kind));
     assert.deepEqual(story, [
       "fail",
-      "read:src/catalog.js",
-      "read:test/catalog.test.js",
-      "read:src/catalog.js",
+      "read:README.md",
+      "read:src",
+      "read:test",
       "read:src/catalog.js",
       "edit",
       "pass",
@@ -54,6 +55,19 @@ describe("synthetic pagination session", () => {
     assert.equal(json.includes("synthetic-pagination"), false);
     assert.equal(json.includes("pasted_content"), false);
     assert.equal(json.includes(DECISION), true);
+  });
+});
+
+describe("read globs", () => {
+  it("keeps an unresolved pattern instead of inventing files", () => {
+    const events = resolveReadGlobs([
+      { kind: "read", path: "src/*.js" },
+      { kind: "edit", path: "test/catalog.test.js", action: "edit" },
+    ]);
+    assert.deepEqual(
+      events.map((event) => (event.kind === "read" ? event.path : event.kind)),
+      ["src/*.js", "edit"],
+    );
   });
 });
 
@@ -89,5 +103,10 @@ describe("pasted title wrappers", () => {
       scrubTitle('<uploaded_documents id="demo">Fix the page slice so the last item is included.'),
       "Fix the page slice so the last item is included.",
     );
+    assert.equal(
+      scrubTitle("Respond entirely in English. Fix the page slice so the last item is included."),
+      "Fix the page slice so the last item is included.",
+    );
+    assert.equal(scrubTitle("Be concise. Answer in English."), "Be concise.");
   });
 });

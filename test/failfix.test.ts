@@ -63,8 +63,9 @@ describe("conservative Bash edits", () => {
     const tee = "/private/tmp/claude-501/-Users-patdoe-agenttape-failfix/sess/scratchpad/npm-test-before.log";
     assert.deepEqual(
       bashEvents(`ls -la && cat package.json && npm test 2>&1 | tee ${tee}`).map((event) => event.kind),
-      ["test"],
+      ["read", "test"],
     );
+    assert.deepEqual(bashEvents("cat x | npm test").map((event) => event.kind), ["test"]);
     assert.deepEqual(
       bashEvents("cat math.js && cat math.test.js").map((event) => event.kind),
       ["read", "read"],
@@ -73,7 +74,7 @@ describe("conservative Bash edits", () => {
       bashEvents("sed -i '' 's/assert.equal(add(2, 2), 5)/assert.equal(add(2, 2), 4)/' math.test.js && cat math.test.js && npm test").map(
         (event) => event.kind,
       ),
-      ["edit", "test"],
+      ["edit", "read", "test"],
     );
     assert.deepEqual(
       bashEvents("npm test && sed -i 's/a/b/' math.test.js").map((event) => event.kind),
@@ -160,9 +161,9 @@ describe("synthetic fail-then-fix session", () => {
       presented.summary.steps
         .filter((step) => step.kind !== "prompt" && step.kind !== "decision")
         .map((step) => (step.kind === "test" ? step.outcome : step.kind)),
-      ["fail", "read", "read", "read", "edit", "pass"],
+      ["read", "fail", "read", "read", "read", "edit", "read", "pass"],
     );
-    assert.deepEqual(trackLabels(svg), ["fail", "read", "edit", "pass"]);
+    assert.deepEqual(trackLabels(svg), ["read", "fail", "read", "edit", "read", "pass"]);
     assert.match(comment, /npm test · pass/);
     assert.match(comment, /· fail/);
     assert.match(comment, /· pass/);

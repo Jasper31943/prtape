@@ -50,9 +50,19 @@ export function presentSummary(input: SessionSummary, options: RedactOptions = {
 export function scrubTitle(text: string, options: RedactOptions = {}): string {
   // Emails never lead the title. A sentence that is only an address is dropped.
   const clean = scrubProse(stripPastedWrappers(text), { ...options, emails: true });
-  const sentence = clean.split(/(?<=[.!?])\s+/)[0]?.trim() ?? "";
-  if (!sentence || isOnlyEmail(sentence)) return "";
-  return sentence;
+  const sentences = splitSentences(clean).filter((sentence) => sentence && !isOnlyEmail(sentence));
+  const task = sentences.find((sentence) => !isMetaInstruction(sentence)) ?? sentences[0] ?? "";
+  return task;
+}
+
+/** Language and format preambles Claude Code puts ahead of the task. */
+function isMetaInstruction(sentence: string): boolean {
+  const text = sentence.trim().replace(/[.!?。]+$/g, "");
+  return (
+    /^(?:respond|answer|reply)\b(?:\s+\w+){0,6}\s+in\b/i.test(text) ||
+    /^be concise\b/i.test(text) ||
+    /^keep (?:it|this|your (?:answer|response)) (?:brief|short|concise)\b/i.test(text)
+  );
 }
 
 /** Drop Claude Code wrappers such as `<pasted_content id="...">...</pasted_content>`. */

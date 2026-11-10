@@ -1,7 +1,7 @@
 import path from "node:path";
 import type { SessionSummary, TestOutcome, TimelineEvent } from "../types.js";
 import { FALLBACK_DECISION, FALLBACK_TITLE } from "../types.js";
-import { bashEvents } from "../bash-edits.js";
+import { bashEvents, resolveReadGlobs } from "../bash-edits.js";
 import { withSteps } from "../summary.js";
 import { classifyTestOutput } from "../tests-detect.js";
 import { oneLine } from "../text.js";
@@ -107,7 +107,7 @@ export function parseClaude(text: string, fallbackId = "claude-session"): Sessio
   }
 
   const results = collectToolResults(records);
-  const events = pending.map((item) => resolveEvent(item, results));
+  const events = resolveReadGlobs(pending.map((item) => resolveEvent(item, results)));
 
   const summaryText = pickSummary(records, activeIds);
   const title = prompts[0] ? oneLine(prompts[0]) : FALLBACK_TITLE;
@@ -129,19 +129,20 @@ export function parseClaude(text: string, fallbackId = "claude-session"): Sessio
 }
 
 type Pending =
-  | { kind: "read"; path?: string }
-  | { kind: "edit"; path: string; action: "edit" | "write" | "delete"; before?: string; after?: string }
-  | { kind: "test"; command: string; toolId?: string }
-  | { kind: "commit" };
+  | { kind: "read"; path?: string; batch?: string }
+  | { kind: "edit"; path: string; action: "edit" | "write" | "delete"; before?: string; after?: string; batch?: string }
+  | { kind: "test"; command: string; toolId?: string; batch?: string }
+  | { kind: "commit"; batch?: string };
 
 function toolEvents(name: string, input: Record<string, unknown>, cwd: string | undefined, toolId: string | undefined): Pending[] {
   const command = bashCommand(name, input);
   if (command) {
+    const batch = toolId;
     return bashEvents(command).map((event) => {
-      if (event.kind === "edit") return { kind: "edit", path: displayPath(event.path, cwd), action: event.action };
-      if (event.kind === "read") return { kind: "read", path: event.path ? displayPath(event.path, cwd) : undefined };
-      if (event.kind === "test") return { kind: "test", command, toolId };
-      return { kind: "commit" };
+      if (event.kind === "edit") return { kind: "edit", path: displayPath(event.path, cwd), action: event.action, batch };
+      if (event.kind === "read") return { kind: "read", path: event.path ? displayPath(event.path, cwd) : undefined, batch };
+      if (event.kind === "test") return { kind: "test", command, toolId, batch };
+      return { kind: "commit", batch };
     });
   }
   const tool = name.toLowerCase();
@@ -157,7 +158,7 @@ function resolveEvent(item: Pending, results: Map<string, ToolResult>): Timeline
   if (item.kind !== "test") return item;
   const result = item.toolId ? results.get(item.toolId) : undefined;
   const outcome: TestOutcome = result ? classifyTestOutput(result.text, result.isError, result.interrupted) : "unknown";
-  return { kind: "test", command: item.command, outcome };
+  return { kind: "test", command: item.command, outcome, batch: item.batch };
 }
 
 function fileEdit(tool: string, input: Record<string, unknown>, cwd: string | undefined): Pending | undefined {

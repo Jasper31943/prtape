@@ -28,24 +28,35 @@ export function withSteps(draft: SessionDraft): SessionSummary {
 }
 
 /**
- * Two adjacent failing runs of the same command, with nothing between them,
- * are one invocation recorded twice. A later failure after a read or edit stays.
+ * Drop a second record of the same failing command.
+ * Adjacent duplicates are one tool call stored twice.
+ * A failing test bundled with the inspection reads that follow an earlier
+ * failure of that same command is the same run, not a new attempt.
+ * A later failure after a separate read stays.
  */
 function collapseIdenticalFails(events: TimelineEvent[]): TimelineEvent[] {
   const kept: TimelineEvent[] = [];
   for (const event of events) {
-    const previous = kept.at(-1);
-    if (previous && sameFailingRun(previous, event)) continue;
+    if (isDuplicateFail(kept, event)) continue;
     kept.push(event);
   }
   return kept;
 }
 
-function sameFailingRun(previous: TimelineEvent, event: TimelineEvent): boolean {
-  if (previous.kind !== "test" || event.kind !== "test") return false;
-  if (previous.outcome !== "fail" || event.outcome !== "fail") return false;
+function isDuplicateFail(kept: TimelineEvent[], event: TimelineEvent): boolean {
+  if (event.kind !== "test" || event.outcome !== "fail") return false;
   const command = displayTestCommand(event.command);
-  return command !== "" && command === displayTestCommand(previous.command);
+  if (!command) return false;
+  const previous = kept.at(-1);
+  if (previous?.kind === "test" && previous.outcome === "fail" && displayTestCommand(previous.command) === command) {
+    return true;
+  }
+  if (!event.batch) return false;
+  let index = kept.length - 1;
+  while (index >= 0 && kept[index]?.kind === "read" && kept[index]?.batch === event.batch) index -= 1;
+  if (index === kept.length - 1) return false;
+  const earlier = kept[index];
+  return earlier?.kind === "test" && earlier.outcome === "fail" && displayTestCommand(earlier.command) === command;
 }
 
 /** Files then tests. Used when a parser has no interleaved event list. */
