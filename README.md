@@ -71,17 +71,19 @@ If `gh` is missing or not logged in, or the push to `refs/prtape/…` is denied,
 
 ## Redaction
 
-On by default, before anything is rendered or posted:
+v0.1 drops a span only when it matches one of these fixed formats:
 
-| Pattern | Replaced with |
+| Format | What actually matches |
 | --- | --- |
-| `sk-ant-…` and other `sk-…` keys | `[REDACTED_API_KEY]` |
-| GitHub tokens `ghp_`, `gho_`, `ghu_`, `ghs_`, `ghr_` | `[REDACTED_GITHUB_TOKEN]` |
-| AWS access key ids (`AKIA` / `ASIA` / `AIDA` / `AROA`) and `AWS_SECRET_ACCESS_KEY=` values | `[REDACTED_AWS_KEY]` |
-| Private IPv4 (`10/8`, `172.16/12`, `192.168/16`) and link-local | `[REDACTED_IP]` |
-| Hostnames ending in `.internal` or `.local` | `[REDACTED_HOST]` |
+| `sk-` API keys | `sk-ant-` plus at least 8 characters, or `sk-` plus at least 8 characters. `sk-test` is left as-is. |
+| GitHub tokens | `ghp_`, `gho_`, `ghu_`, `ghs_`, or `ghr_` plus at least 20 characters. |
+| AWS keys | Access key ids `AKIA`, `ASIA`, `AIDA`, or `AROA` plus 16 characters, and values after `AWS_SECRET_ACCESS_KEY=`. |
+| Private IPv4 | `10/8`, `172.16/12`, `192.168/16`, and link-local `169.254/16`. Loopback addresses stay. |
+| Hostnames | Names ending in `.internal` or `.local`. `localhost` stays. |
 
-Those spans are dropped from the pull-request comment, the timeline image, and the JSON fields a reviewer would read. The card does not print `[REDACTED_*]` or dotted stand-ins like `sk-••••`. Emails are left out of the title. `--redact-emails` also drops them from the rest of the summary. This is prefix matching, not a secret scanner.
+It does not catch other password formats, database connection strings, or custom company domains. Review the comment before it is posted.
+
+A matching span is removed from the pull-request comment, the timeline image, and the JSON a reviewer would read. The card does not print a replacement token. Email addresses stay unless you pass `--redact-emails`. The title drops an email even without that flag.
 
 ## Sessions
 
@@ -119,7 +121,7 @@ There is no workflow in v0.1. Sessions live on the developer machine, so a hoste
 
 ## 繁體中文
 
-PRtape 把本機的 Claude Code 工作階段整理成一張預設已遮罩機密的 PR 圖，讓審查者大約五秒內看懂：動了哪些檔案、有沒有跑測試，以及一行決策摘要。目前只支援 Claude Code。
+PRtape 把本機的 Claude Code 工作階段整理成一張 PR 圖，讓審查者大約五秒內看懂：動了哪些檔案、有沒有跑測試，以及一行決策摘要。預設只刪除固定的常見金鑰格式，不是所有機密。目前只支援 Claude Code。
 
 ```bash
 npx prtape-cli pr

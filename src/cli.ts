@@ -22,14 +22,16 @@ interface Args {
 }
 
 const HELP = `PRtape puts one image on the pull request.
-See what your AI agent actually did. What the agent did, on the PR.
+See what your AI agent actually did.
 
 Install:
   npm i -g prtape-cli
   npx prtape-cli pr
 
+After a global install (npm i -g prtape-cli) the command is \`prtape\`.
+
 Usage:
-  prtape pr [options]
+  npx prtape-cli pr [options]
 
 Options:
   --cwd <dir>              Project directory (default: current directory)
@@ -46,10 +48,10 @@ Options:
   -V, --version            Show the version
 
 Examples:
-  prtape pr
-  prtape pr --dry-run
-  prtape pr --json --dry-run
-  prtape pr --session fixtures/claude-session.jsonl --dry-run
+  npx prtape-cli pr
+  npx prtape-cli pr --dry-run
+  npx prtape-cli pr --json --dry-run
+  npx prtape-cli pr --session fixtures/claude-session.jsonl --dry-run
 
 A real run pushes timeline.png to the orphan ref refs/prtape/<head> and
 the comment leads with github.com/.../raw/<sha>/timeline.png. That ref is not
