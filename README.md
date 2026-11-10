@@ -112,7 +112,7 @@ The npm package name is `prtape` (`bin` points at `dist/cli.js`). This checkout 
 Not in this release:
 
 - A Claude Code `SessionEnd` hook that runs `prtape pr` when a session ends.
-- Cursor session reading. Explicitly later. v0.1 does not read Cursor transcripts.
+- Cursor session reading, planned for v0.2 alongside the Claude Code `SessionEnd` hook. v0.1 does not read Cursor transcripts.
 - Still no `prepare-commit-msg` hook, and still no `.prtape/` directory in the repo.
 
 ## GitHub Action
@@ -135,8 +135,6 @@ npx prtape pr --dry-run
 ASCII and mermaid appear only when the PNG was not pushed.
 
 Tokens in square brackets in the fixture render are redaction markers, not real secrets.
-
-A recorded GIF is not in v0.1. The SVG in this README is the visual until a short capture of `npx prtape pr --dry-run` replaces this note.
 
 ## License
 
