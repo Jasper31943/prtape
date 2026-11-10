@@ -4,7 +4,7 @@
  */
 
 /** Custom ref namespace. Never a branch under refs/heads, so it cannot merge into main. */
-export const ORPHAN_REF_PREFIX = "refs/agenttape";
+export const ORPHAN_REF_PREFIX = "refs/prtape";
 
 export function orphanRef(anchor: string): string {
   const safe = anchor.replace(/[^A-Za-z0-9._-]/g, "").slice(0, 64);
@@ -37,7 +37,7 @@ export function glanceUnauth(): string {
 export function glancePushDenied(): string {
   return [
     `Image not posted: push to orphan ref ${ORPHAN_REF_PREFIX}/<sha> was denied.`,
-    "Fix: give this account write access to the repo, then rerun `agenttape pr`.",
+    "Fix: give this account write access to the repo, then rerun `prtape pr`.",
     "Fell back to the text timeline (ASCII + mermaid).",
   ].join("\n");
 }
@@ -47,7 +47,7 @@ export function glancePushOther(detail: string): string {
   return [
     `Image not posted: could not push the PNG to orphan ref ${ORPHAN_REF_PREFIX}/<sha>.`,
     line,
-    "Fix: run `gh auth status`, confirm you can push to origin, then rerun `agenttape pr`.",
+    "Fix: run `gh auth status`, confirm you can push to origin, then rerun `prtape pr`.",
     "Fell back to the text timeline (ASCII + mermaid).",
   ].join("\n");
 }
@@ -55,7 +55,7 @@ export function glancePushOther(detail: string): string {
 export function glanceNoOrigin(): string {
   return [
     "Image not posted: this repo has no origin remote.",
-    "Fix: `git remote add origin <github-url>`, then rerun `agenttape pr`.",
+    "Fix: `git remote add origin <github-url>`, then rerun `prtape pr`.",
     "Fell back to the text timeline (ASCII + mermaid).",
   ].join("\n");
 }
@@ -63,7 +63,7 @@ export function glanceNoOrigin(): string {
 export function glanceRaster(): string {
   return [
     "Image not posted: the timeline PNG could not be rendered.",
-    "Fix: reinstall agenttape so the SVG rasterizer is available, then rerun `agenttape pr`.",
+    "Fix: reinstall prtape so the SVG rasterizer is available, then rerun `prtape pr`.",
     "Fell back to the text timeline (ASCII + mermaid).",
   ].join("\n");
 }
@@ -73,7 +73,7 @@ export function glanceRepoUnreadable(detail: string): string {
   return [
     "Image not posted: gh could not read this repository.",
     line,
-    "Fix: run `gh repo view` from the project, then rerun `agenttape pr`.",
+    "Fix: run `gh repo view` from the project, then rerun `prtape pr`.",
     "Fell back to the text timeline (ASCII + mermaid).",
   ].join("\n");
 }

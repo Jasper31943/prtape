@@ -11,6 +11,26 @@ import { parseClaude } from "../src/adapters/claude.js";
 import { fixture } from "./helpers.js";
 
 describe("orphan PNG ref", () => {
+  it("PRTAPE_DENY_PUSH forces the mermaid fallback without pushing", () => {
+    const previous = process.env.PRTAPE_DENY_PUSH;
+    const legacy = process.env.AGENTTAPE_DENY_PUSH;
+    process.env.PRTAPE_DENY_PUSH = "1";
+    delete process.env.AGENTTAPE_DENY_PUSH;
+    try {
+      const result = pushOrphanPng({ remote: "/tmp/prtape-should-not-push", png: Buffer.from("png") });
+      assert.equal(result.ok, false);
+      if (!result.ok) {
+        assert.match(result.glance, /refs\/prtape\/<sha>/);
+        assert.match(result.glance, /prtape pr/);
+      }
+    } finally {
+      if (previous === undefined) delete process.env.PRTAPE_DENY_PUSH;
+      else process.env.PRTAPE_DENY_PUSH = previous;
+      if (legacy === undefined) delete process.env.AGENTTAPE_DENY_PUSH;
+      else process.env.AGENTTAPE_DENY_PUSH = legacy;
+    }
+  });
+
   it("AGENTTAPE_DENY_PUSH forces the mermaid fallback without pushing", () => {
     const previous = process.env.AGENTTAPE_DENY_PUSH;
     process.env.AGENTTAPE_DENY_PUSH = "1";
@@ -30,12 +50,12 @@ describe("orphan PNG ref", () => {
   it("names the permission failure and the fix in one glance", () => {
     const glance = glancePushDenied();
     assert.match(glance, /Image not posted/);
-    assert.match(glance, /refs\/agenttape\/<sha>/);
+    assert.match(glance, /refs\/prtape\/<sha>/);
     assert.match(glance, /Fix:/);
     assert.match(glance, /write access/);
     assert.match(glance, /ASCII \+ mermaid/);
     assert.equal(isPermissionFailure("remote: Permission to acme/demo.git denied to octocat."), true);
-    assert.equal(orphanRef("abc123def"), "refs/agenttape/abc123def");
+    assert.equal(orphanRef("abc123def"), "refs/prtape/abc123def");
   });
 
   it("pushes a parentless commit to refs/agenttape/<head> and leaves the project untouched", () => {
@@ -60,14 +80,14 @@ describe("orphan PNG ref", () => {
     });
     assert.equal(first.ok, true, "glance" in first ? first.glance : "");
     if (!first.ok) return;
-    assert.equal(first.ref, `refs/agenttape/${head}`);
+    assert.equal(first.ref, `refs/prtape/${head}`);
     assert.throws(() => git(bare, ["rev-parse", "--verify", `${first.sha}^`]));
     assert.deepEqual(
       git(bare, ["ls-tree", "--name-only", first.sha]).trim().split("\n").filter(Boolean),
       [ORPHAN_FILE],
     );
     assert.equal(git(bare, ["rev-parse", first.ref]).trim(), first.sha);
-    assert.equal(git(bare, ["for-each-ref", "--format=%(refname)", "refs/heads"]).includes("agenttape"), false);
+    assert.equal(git(bare, ["for-each-ref", "--format=%(refname)", "refs/heads"]).includes("prtape"), false);
 
     const second = pushOrphanPng({
       remote: bare,
@@ -83,14 +103,15 @@ describe("orphan PNG ref", () => {
     assert.equal(git(project, ["rev-parse", "HEAD"]).trim(), head);
     assert.equal(git(project, ["status", "--porcelain"]), statusBefore);
     assert.equal(git(project, ["for-each-ref"]), refsBefore);
-    assert.equal(fs.existsSync(path.join(project, ".agenttape")), false);
+    assert.equal(fs.existsSync(path.join(project, ".prtape")), false);
   });
 
   it("leads the hosted comment with the raw image and keeps ASCII for the fallback only", () => {
     const summary = parseClaude(fixture("claude-session.jsonl"), "claude-session.jsonl");
     const url = "https://github.com/acme/demo/raw/abc123def/timeline.png";
     const comment = renderComment(summary, {}, { url, isPrivate: false });
-    assert.match(comment, /^!\[AgentTape timeline\]\(https:\/\/github\.com\/acme\/demo\/raw\/abc123def\/timeline\.png\)/);
+    assert.match(comment, /^!\[PRtape timeline\]\(https:\/\/github\.com\/acme\/demo\/raw\/abc123def\/timeline\.png\)/);
+    assert.match(comment, /<!-- prtape -->/);
     assert.match(comment, /public repo/i);
     assert.match(comment, /private repo/i);
     assert.match(comment, /logged-out users, email notifications, and some mobile clients/);
@@ -102,7 +123,9 @@ describe("orphan PNG ref", () => {
     const fallback = renderComment(summary);
     assert.match(fallback, /```mermaid/);
     assert.match(fallback, /ask ──▶ 3 files ──▶ tests pass ──▶ ship/);
-    assert.doesNotMatch(fallback, /!\[AgentTape timeline\]/);
+    assert.doesNotMatch(fallback, /!\[PRtape timeline\]/);
+    assert.match(fallback, /### PRtape/);
+    assert.match(fallback, /<!-- prtape -->/);
   });
 });
 

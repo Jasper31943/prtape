@@ -48,7 +48,7 @@ export function renderSvg(input: SessionSummary, options: RedactOptions = {}, de
   parts.push(
     `<svg xmlns="http://www.w3.org/2000/svg" width="${WIDTH}" height="${HEIGHT}" viewBox="0 0 ${WIDTH} ${HEIGHT}" role="img">`,
   );
-  parts.push(`  <title>${escapeXml(`AgentTape timeline · ${source}`)}</title>`);
+  parts.push(`  <title>${escapeXml(`PRtape timeline · ${source}`)}</title>`);
   parts.push(`  <desc>${escapeXml(summary.decision)}</desc>`);
   parts.push(`  <defs>`);
   parts.push(`    <linearGradient id="reel" x1="0" y1="0" x2="1" y2="1">`);
@@ -134,7 +134,7 @@ function beatLabel(event: TimelineEvent): string | undefined {
 function reelMark(x: number, y: number, size: number): string {
   const scale = (size / 128).toFixed(4);
   return [
-    `  <g transform="translate(${x} ${y}) scale(${scale})" aria-label="AgentTape reel">`,
+    `  <g transform="translate(${x} ${y}) scale(${scale})" aria-label="PRtape reel">`,
     `    <rect width="128" height="128" rx="28" fill="${BG}"/>`,
     `    <g transform="translate(0 6)">`,
     `      <path d="M112 91 H52 A33 33 0 1 1 52 25 A33 33 0 1 1 52 91" fill="none" stroke="url(#reel)" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>`,
@@ -149,8 +149,7 @@ function reelMark(x: number, y: number, size: number): string {
 function wordmark(x: number, y: number): string {
   return [
     `  <text x="${x}" y="${y}" font-family="${MONO}" font-size="20" font-weight="800">`,
-    `    <tspan fill="${INK}">Agent</tspan><tspan fill="${ACCENT}">Tape</tspan>`,
-    `    <tspan fill="${MUTED}" font-size="14" font-weight="400"> · agent replay</tspan>`,
+    `    <tspan fill="${INK}">PR</tspan><tspan fill="${ACCENT}">tape</tspan>`,
     `  </text>`,
   ].join("\n");
 }

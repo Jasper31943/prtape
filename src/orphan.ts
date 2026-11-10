@@ -2,6 +2,7 @@ import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { envValue } from "./env.js";
 import type { CommandResult, CommandRunner } from "./gh.js";
 import { defaultRunner } from "./gh.js";
 import {
@@ -64,7 +65,7 @@ export interface HostInput {
 
 /**
  * Build a parentless commit whose tree is exactly `timeline.png`, then push
- * it to `refs/agenttape/<head-sha>`. No other blobs. The user's index, HEAD,
+ * it to `refs/prtape/<head-sha>`. No other blobs. The user's index, HEAD,
  * branch, and working tree are not modified. The comment URL is
  * `https://github.com/{owner}/{repo}/raw/{commit}/timeline.png`.
  */
@@ -128,11 +129,11 @@ export function pushOrphanPng(input: {
   tmpRoot?: string;
   useGhCredential?: boolean;
 }): (HostedPng) | HostFailure {
-  if (process.env.AGENTTAPE_DENY_PUSH === "1") {
+  if (envValue("DENY_PUSH") === "1") {
     return { ok: false, glance: glancePushDenied() };
   }
   const git = input.git ?? defaultGit;
-  const tmp = fs.mkdtempSync(path.join(input.tmpRoot ?? os.tmpdir(), "agenttape-orphan-"));
+  const tmp = fs.mkdtempSync(path.join(input.tmpRoot ?? os.tmpdir(), "prtape-orphan-"));
   const identity = gitIdentity(git);
 
   const init = git(["init", "-q"], tmp);
@@ -164,7 +165,7 @@ export function pushOrphanPng(input: {
     return { ok: false, glance: glancePushOther(tree.stderr || tree.stdout || "git mktree failed.") };
   }
 
-  const commit = git(["commit-tree", treeSha, "-m", "AgentTape timeline"], tmp);
+  const commit = git(["commit-tree", treeSha, "-m", "PRtape timeline"], tmp);
   const commitSha = commit.stdout.trim();
   if (commit.code !== 0 || !/^[0-9a-f]{40}$/i.test(commitSha)) {
     return { ok: false, glance: glancePushOther(commit.stderr || commit.stdout || "git commit-tree failed.") };
@@ -176,7 +177,7 @@ export function pushOrphanPng(input: {
   const prefix = input.useGhCredential
     ? ["-c", "credential.helper=", "-c", "credential.helper=!gh auth git-credential"]
     : [];
-  // `+` forces only this refspec. The destination is refs/agenttape/*, never a branch.
+  // `+` forces only this refspec. The destination is refs/prtape/*, never a branch.
   const push = git([...prefix, "push", "origin", `+${commitSha}:${ref}`], tmp);
   if (push.code !== 0) {
     const text = `${push.stderr}\n${push.stdout}`;
@@ -203,7 +204,7 @@ function gitIdentity(git: GitRunner): { name: string; email: string } {
   const name = git(["config", "--global", "user.name"], os.tmpdir()).stdout.trim();
   const email = git(["config", "--global", "user.email"], os.tmpdir()).stdout.trim();
   return {
-    name: name || "AgentTape",
-    email: email || "agenttape@localhost",
+    name: name || "PRtape",
+    email: email || "prtape@example.invalid",
   };
 }

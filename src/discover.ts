@@ -155,12 +155,12 @@ export function findSession(options: DiscoverOptions): FoundSession {
       ? {
           source: "claude-code",
           path: claude,
-          note: "Using the Claude Code session because it is newer than .aider.chat.history.md.",
+          note: "Using the Claude Code session because it is newer.",
         }
       : {
           source: "aider",
           path: aider,
-          note: "Using Aider history because it is newer than the Claude Code session.",
+          note: "Using the newer session file.",
         };
   }
   if (claude) return { source: "claude-code", path: claude };
@@ -239,5 +239,5 @@ function missingAider(cwd: string): string {
 }
 
 function missingEither(cwd: string): string {
-  return `No Claude Code session or Aider history for ${cwd}. Pass --session <file> to point at one. AgentTape does not read Cursor sessions in v0.1.`;
+  return `No Claude Code session for ${cwd}. Claude Code only for now. Pass --session <file.jsonl> to choose one. PRtape does not read Cursor sessions in v0.1.`;
 }

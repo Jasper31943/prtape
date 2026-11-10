@@ -3,7 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { describe, it } from "node:test";
-import { explainGhFailure, postComment, type CommandResult, type CommandRunner } from "../src/gh.js";
+import { explainGhFailure, isPrtapeComment, postComment, type CommandResult, type CommandRunner } from "../src/gh.js";
 import { runPr } from "../src/run.js";
 import { SECRET_CANARIES } from "./canaries.js";
 import { root } from "./helpers.js";
@@ -121,7 +121,7 @@ describe("gh", () => {
     assert.equal(dry.posted, false);
     assert.equal(calls.length, 0);
     assert.deepEqual(fs.readdirSync(cwd), before);
-    assert.equal(fs.existsSync(path.join(cwd, ".agenttape")), false);
+    assert.equal(fs.existsSync(path.join(cwd, ".prtape")), false);
     assert.equal(fs.existsSync(dry.svgPath), true);
     assert.ok(dry.svgPath.startsWith(tmpDir));
     assert.equal(fs.readFileSync(dry.svgPath, "utf8"), dry.svg);
@@ -152,7 +152,9 @@ describe("gh", () => {
     assert.ok(commentCall);
     assert.equal(commentCall?.args.includes("--input"), true);
     const createdBody = JSON.parse(commentCall?.input ?? "{}") as { body?: string };
-    assert.match(createdBody.body ?? "", /^!\[AgentTape timeline\]\(https:\/\/github\.com\/acme\/demo\/raw\/abc123def\/timeline\.png\)/);
+    assert.match(createdBody.body ?? "", /^!\[PRtape timeline\]\(https:\/\/github\.com\/acme\/demo\/raw\/abc123def\/timeline\.png\)/);
+    assert.match(createdBody.body ?? "", /<!-- prtape -->/);
+    assert.match(createdBody.body ?? "", /Redacted locally by PRtape/);
     assert.match(createdBody.body ?? "", /github\.com\/acme\/demo\/raw\/abc123def\/timeline\.png/);
     assert.doesNotMatch(createdBody.body ?? "", /```mermaid/);
     assert.doesNotMatch(createdBody.body ?? "", /ask ──▶/);
@@ -216,6 +218,9 @@ describe("gh", () => {
     assert.equal(posts.length, 0);
     assert.equal(patches.length, 1);
     assert.equal(patches[0]?.args[3], "repos/acme/demo/issues/comments/4");
+    const patched = JSON.parse(patches[0]?.input ?? "{}") as { body?: string };
+    assert.match(patched.body ?? "", /<!-- prtape -->/);
+    assert.match(patched.body ?? "", /PRtape/);
     assert.equal(posted.prNumber, 1);
     assert.match(posted.note, /Updated/);
 
@@ -241,6 +246,50 @@ describe("gh", () => {
     assert.equal(denyPatches[0]?.args[3], "repos/acme/demo/issues/comments/4");
     assert.match(JSON.parse(denyPatches[0]?.input ?? "{}").body as string, /```mermaid/);
     assert.equal(denied.posted, true);
+  });
+
+  it("updates a comment that only has the old AgentTape footer", async () => {
+    const calls: { args: string[]; input?: string }[] = [];
+    const comments = [
+      {
+        id: 8,
+        user: { login: "octocat" },
+        body: "Some review notes.\n\n_Redacted locally by AgentTape 0.1.0. The raw session was not posted._\n",
+        created_at: "2026-01-01T00:00:00Z",
+      },
+    ];
+    const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "prtape-legacy-"));
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "prtape-legacy-svg-"));
+    const posted = await runPr({
+      cwd,
+      sessionPath: path.join(root, "fixtures", "claude-session.jsonl"),
+      source: "auto",
+      dryRun: false,
+      redactEmails: false,
+      tmpDir,
+      prNumber: 7,
+      runner: githubRunner(calls, comments),
+      hostImage: async () => ({
+        ok: true,
+        url: "https://github.com/acme/demo/raw/abc123def/timeline.png",
+        sha: "abc123def",
+        ref: "refs/prtape/abc123def",
+        isPrivate: false,
+      }),
+    });
+    const patches = calls.filter((call) => call.args[1] === "--method" && call.args[2] === "PATCH");
+    const posts = calls.filter((call) => call.args[1] === "--method" && call.args[2] === "POST");
+    assert.equal(posts.length, 0);
+    assert.equal(patches.length, 1);
+    assert.equal(patches[0]?.args[3], "repos/acme/demo/issues/comments/8");
+    const body = (JSON.parse(patches[0]?.input ?? "{}") as { body?: string }).body ?? "";
+    assert.match(body, /<!-- prtape -->/);
+    assert.match(body, /!\[PRtape timeline\]/);
+    assert.equal(posted.prNumber, 7);
+    assert.match(posted.note, /Updated/);
+    assert.equal(isPrtapeComment("Redacted locally by AgentTape 0.1.0."), true);
+    assert.equal(isPrtapeComment("### PRtape\n<!-- prtape -->"), true);
+    assert.equal(isPrtapeComment("Looks good to me."), false);
   });
 
   it("returns the comment instead of throwing when gh cannot find a PR", async () => {
@@ -281,7 +330,7 @@ describe("gh", () => {
     assert.match(kept.note, /Nothing was posted/);
     assert.match(kept.comment, /```mermaid/);
     assert.equal(kept.comment.includes("github.com/"), false);
-    assert.equal(fs.readdirSync(cwd).some((name) => name === ".agenttape" || name.endsWith(".jsonl")), false);
+    assert.equal(fs.readdirSync(cwd).some((name) => name === ".prtape" || name.endsWith(".jsonl")), false);
   });
 
   it("prints a one-glance fix and does not post when gh is missing", async () => {

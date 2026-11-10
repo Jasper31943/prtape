@@ -1,11 +1,20 @@
 {
-  "name": "agenttape",
+  "name": "prtape",
   "version": "0.1.0",
-  "description": "Turn a local coding-agent session into a redacted visual PR timeline.",
+  "description": "PRtape: See what your AI agent actually did. One image on the pull request.",
   "license": "MIT",
+  "author": "Jasper31943",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Jasper31943/prtape.git"
+  },
+  "homepage": "https://github.com/Jasper31943/prtape",
+  "bugs": {
+    "url": "https://github.com/Jasper31943/prtape/issues"
+  },
   "type": "module",
   "bin": {
-    "agenttape": "./dist/cli.js"
+    "prtape": "./dist/cli.js"
   },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -28,12 +37,11 @@
     "prepare": "npm run build",
     "typecheck": "tsc -p tsconfig.test.json --noEmit",
     "test": "tsc -p tsconfig.test.json --noEmit && tsx --test test/*.test.ts",
-    "agenttape": "tsx src/cli.ts"
+    "prtape": "tsx src/cli.ts"
   },
   "keywords": [
     "cli",
     "claude-code",
-    "aider",
     "pull-request",
     "redaction",
     "timeline"

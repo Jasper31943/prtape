@@ -3,6 +3,7 @@ import path from "node:path";
 import { runPr, toPublicJson, formatPosted } from "./run.js";
 import { NoSessionError } from "./discover.js";
 import type { SourceChoice } from "./discover.js";
+import { envValue } from "./env.js";
 import { VERSION } from "./version.js";
 
 interface Args {
@@ -20,17 +21,17 @@ interface Args {
   demo: boolean;
 }
 
-const HELP = `AgentTape turns a local coding-agent session into a redacted PR timeline.
+const HELP = `PRtape puts one image on the pull request.
+See what your AI agent actually did. Agent replay on the PR.
 
 Usage:
-  agenttape pr [options]
+  prtape pr [options]
 
 Options:
   --cwd <dir>              Project directory (default: current directory)
-  --session <file>         Claude Code JSONL or Aider chat history to read
+  --session <file>         Claude Code JSONL to read
   --pr <number>            Comment on this pull request (default: PR for the current branch)
-  --source auto|claude|aider
-                           auto uses the newer relevant session (default: auto)
+  --source auto|claude     Claude Code only for now (default: auto)
   --claude-home <dir>      Claude config directory (default: ~/.claude or $CLAUDE_CONFIG_DIR)
   --dry-run                Print the comment and do not call gh
   --json                   Print the redacted summary as JSON on stdout
@@ -41,16 +42,17 @@ Options:
   -V, --version            Show the version
 
 Examples:
-  agenttape pr
-  agenttape pr --dry-run
-  agenttape pr --json --dry-run
-  agenttape pr --session fixtures/claude-session.jsonl --dry-run
+  prtape pr
+  prtape pr --dry-run
+  prtape pr --json --dry-run
+  prtape pr --session fixtures/claude-session.jsonl --dry-run
 
-A real run pushes timeline.png to the orphan ref refs/agenttape/<head> and
+A real run pushes timeline.png to the orphan ref refs/prtape/<head> and
 the comment leads with github.com/.../raw/<sha>/timeline.png. That ref is not
 your branch. If gh is missing, not authenticated, or the push is denied,
-AgentTape prints what failed and how to fix it, then uses the text timeline.
+PRtape prints what failed and how to fix it, then uses the text timeline.
 --dry-run writes the PNG locally and does not push or comment.
+Claude Code only for now.
 `;
 
 async function main(argv: string[]): Promise<number> {
@@ -92,7 +94,7 @@ async function main(argv: string[]): Promise<number> {
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     process.stderr.write(`${message}\n`);
-    if (process.env.AGENTTAPE_DEBUG && error instanceof Error && error.stack) {
+    if (envValue("DEBUG") && error instanceof Error && error.stack) {
       process.stderr.write(`${error.stack}\n`);
     }
     return error instanceof NoSessionError ? 1 : 1;
@@ -201,7 +203,7 @@ function parseArgs(argv: string[]): Args {
       case "--source": {
         const value = take();
         if (value !== "auto" && value !== "claude" && value !== "aider") {
-          throw new Error(`Unknown --source ${value}. Use auto, claude, or aider.`);
+          throw new Error(`Unknown --source ${value}. Use auto or claude.`);
         }
         args.source = value;
         break;

@@ -57,10 +57,13 @@ export function renderComment(
     `| Files touched | ${escapeMdCell(files)} |`,
     `| Tests | ${escapeMdCell(testsCell(summary))} |`,
   ];
-  const footer = `_Redacted locally by AgentTape ${VERSION}. The raw session was not posted._`;
+  const footer = `_Redacted locally by PRtape ${VERSION}. The raw session was not posted._`;
+  const marker = "<!-- prtape -->";
   const lines = image
     ? [
-        `![AgentTape timeline](${image.url})`,
+        `![PRtape timeline](${image.url})`,
+        "",
+        marker,
         "",
         `**${escapeMdCell(decision)}**`,
         "",
@@ -73,7 +76,9 @@ export function renderComment(
         "",
       ]
     : [
-        "### AgentTape",
+        "### PRtape",
+        "",
+        marker,
         "",
         `**${escapeMdCell(decision)}**`,
         "",
@@ -95,7 +100,7 @@ export function renderComment(
         "",
         "</details>",
         "",
-        `_Redacted locally by AgentTape ${VERSION}. The raw session was not posted. This is the text timeline (ASCII + mermaid). GitHub strips inline SVG._`,
+        `_Redacted locally by PRtape ${VERSION}. The raw session was not posted. This is the text timeline (ASCII + mermaid). GitHub strips inline SVG._`,
         "",
       ];
   return lines.join("\n");
@@ -104,7 +109,7 @@ export function renderComment(
 function dryRunNote(): string {
   return [
     "_Dry run. Nothing was uploaded and no comment was posted. The local PNG path is printed on stderr, not in this comment._",
-    "_A real `agenttape pr` pushes the PNG to the orphan ref `refs/agenttape/<head>` and the comment leads with `https://github.com/{owner}/{repo}/raw/{sha}/timeline.png`._",
+    "_A real `prtape pr` pushes the PNG to the orphan ref `refs/prtape/<head>` and the comment leads with `https://github.com/{owner}/{repo}/raw/{sha}/timeline.png`._",
     "_On a public repo, logged-out viewers see that image. On a private repo they may not; collaborators who can open the repo usually see it._",
   ].join(" ");
 }

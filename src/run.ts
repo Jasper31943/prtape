@@ -124,8 +124,8 @@ export async function runPr(options: RunOptions): Promise<RunResult> {
       sessionNote: found.note,
       origin: found.path,
       note: [
-        "AgentTape dry-run. Nothing was posted and nothing was pushed.",
-        "A real run pushes the PNG to refs/agenttape/<head> and the comment leads with https://github.com/{owner}/{repo}/raw/{sha}/timeline.png.",
+        "PRtape dry-run. Nothing was posted and nothing was pushed.",
+        "A real run pushes the PNG to refs/prtape/<head> and the comment leads with https://github.com/{owner}/{repo}/raw/{sha}/timeline.png.",
         "Logged-out viewers see that image on a public repo. On a private repo they may not.",
       ].join("\n"),
     };
@@ -253,7 +253,7 @@ export function writeTimelineFile(
   extension: "svg" | "png",
 ): string {
   const safe = sessionId.replace(/[^A-Za-z0-9_-]+/g, "").slice(0, 48) || "session";
-  const file = path.join(tmpDir, `agenttape-${safe}.${extension}`);
+  const file = path.join(tmpDir, `prtape-${safe}.${extension}`);
   assertNotInsideProject(file, cwd);
   fs.mkdirSync(path.dirname(file), { recursive: true });
   fs.writeFileSync(file, contents, { mode: 0o600 });

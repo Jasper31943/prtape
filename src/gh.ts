@@ -14,7 +14,7 @@ export interface PrRef {
   number: number;
   url: string;
   commentId: number;
-  /** True when an existing AgentTape comment was edited instead of created. */
+  /** True when an existing PRtape or AgentTape comment was edited instead of created. */
   updated: boolean;
 }
 
@@ -26,8 +26,8 @@ export class GhError extends Error {
 }
 
 /**
- * The only network path in AgentTape. `gh` talks to GitHub when the user
- * runs `agenttape pr` without `--dry-run`. There is no telemetry.
+ * The only network path in PRtape. `gh` talks to GitHub when the user
+ * runs `prtape pr` without `--dry-run`. There is no telemetry.
  */
 export function defaultRunner(
   command: string,
@@ -78,13 +78,26 @@ export function explainGhFailure(result: CommandResult): string {
   return detail;
 }
 
-/** PNG comments and the mermaid fallback both match. Other review chatter does not. */
-export function isAgentTapeComment(body: string): boolean {
+/**
+ * PNG comments and the mermaid fallback both match. Other review chatter does not.
+ * `<!-- prtape -->` is the marker id. Visible headings say PRtape.
+ * Older AgentTape comments still match so a rerun updates them.
+ */
+export function isPrtapeComment(body: string): boolean {
   return (
+    body.includes("<!-- prtape -->") ||
+    body.includes("![PRtape timeline](") ||
+    body.includes("### PRtape") ||
+    body.includes("Redacted locally by PRtape") ||
     body.includes("![AgentTape timeline](") ||
     body.includes("### AgentTape") ||
     body.includes("Redacted locally by AgentTape")
   );
+}
+
+/** @deprecated Use isPrtapeComment. Kept so older imports still find both markers. */
+export function isAgentTapeComment(body: string): boolean {
+  return isPrtapeComment(body);
 }
 
 interface IssueComment {
@@ -95,7 +108,7 @@ interface IssueComment {
 }
 
 /**
- * Create or update one AgentTape comment on the pull request.
+ * Create or update one PRtape comment on the pull request.
  * A second run PATCHes the latest matching comment from the current `gh` user
  * instead of calling `gh pr comment` again.
  */
@@ -216,7 +229,7 @@ async function latestAgentTapeComment(
     return (
       comment.user?.login === login &&
       typeof comment.body === "string" &&
-      isAgentTapeComment(comment.body) &&
+      isPrtapeComment(comment.body) &&
       typeof comment.id === "number"
     );
   });

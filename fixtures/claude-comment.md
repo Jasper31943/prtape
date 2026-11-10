@@ -1,4 +1,6 @@
-### AgentTape
+### PRtape
+
+<!-- prtape -->
 
 **Ship the redacted timeline; secrets stay off the PR.**
 
@@ -32,4 +34,4 @@ flowchart LR
 
 </details>
 
-_Redacted locally by AgentTape 0.1.0. The raw session was not posted. This is the text timeline (ASCII + mermaid). GitHub strips inline SVG._
+_Redacted locally by PRtape 0.1.0. The raw session was not posted. This is the text timeline (ASCII + mermaid). GitHub strips inline SVG._

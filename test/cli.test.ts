@@ -34,7 +34,8 @@ describe("cli", () => {
     assert.match(result.stderr, /dry-run/);
     assert.match(result.stderr, /SVG: /);
     assert.match(result.stderr, /PNG: /);
-    assert.match(result.stdout, /^!\[AgentTape timeline\]\(timeline\.png\)/);
+    assert.match(result.stdout, /^!\[PRtape timeline\]\(timeline\.png\)/);
+    assert.match(result.stdout, /<!-- prtape -->/);
     assert.doesNotMatch(result.stdout, /file:\/\//);
     assert.doesNotMatch(result.stdout, /11111111-2222-4333-8444-555555555555/);
     assert.match(result.stderr, /PNG: .+/);
@@ -68,7 +69,7 @@ describe("cli", () => {
     assert.equal(parsed.decision, "Ship the redacted timeline; secrets stay off the PR.");
     assert.equal(parsed.title.includes("[REDACTED"), false);
     assert.equal(result.stdout.includes("[REDACTED"), false);
-    assert.equal(result.stdout.includes("### AgentTape"), false);
+    assert.equal(result.stdout.includes("### PRtape"), false);
     for (const canary of SECRET_CANARIES) {
       assert.equal(result.stdout.includes(canary), false, canary);
     }

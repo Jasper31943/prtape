@@ -61,6 +61,9 @@ describe("timeline snapshots", () => {
     assert.match(svg, /TESTS RAN/);
     assert.match(svg, /KEY DECISION/);
     assert.match(svg, /npm test · pass/);
+    assert.match(svg, /<tspan fill="#E6EDF3">PR<\/tspan><tspan fill="#39FF88">tape<\/tspan>/);
+    assert.doesNotMatch(svg, /agent replay/);
+    assert.match(svg, /Claude Code/);
     assert.doesNotMatch(svg, /[✓✔✕]/);
     assert.doesNotMatch(comment, /[✓✔✕]/);
     assert.match(svg, /#0B0F14/);

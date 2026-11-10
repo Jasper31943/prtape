@@ -1,4 +1,3 @@
-export { parseAider } from "./adapters/aider.js";
 export { parseClaude } from "./adapters/claude.js";
 export { findSession, NoSessionError, type SourceChoice } from "./discover.js";
 export { postComment, GhError } from "./gh.js";

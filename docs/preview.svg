@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="960" height="480" viewBox="0 0 960 480" role="img">
-  <title>AgentTape timeline · Claude Code</title>
+  <title>PRtape timeline · Claude Code</title>
   <desc>Ship the redacted timeline; secrets stay off the PR.</desc>
   <defs>
     <linearGradient id="reel" x1="0" y1="0" x2="1" y2="1">
@@ -10,7 +10,7 @@
   </defs>
   <rect width="960" height="480" rx="18" fill="#0B0F14"/>
   <rect x="16" y="16" width="928" height="448" rx="14" fill="#101820" stroke="#39FF88" stroke-width="1.5"/>
-  <g transform="translate(28 26) scale(0.3750)" aria-label="AgentTape reel">
+  <g transform="translate(28 26) scale(0.3750)" aria-label="PRtape reel">
     <rect width="128" height="128" rx="28" fill="#0B0F14"/>
     <g transform="translate(0 6)">
       <path d="M112 91 H52 A33 33 0 1 1 52 25 A33 33 0 1 1 52 91" fill="none" stroke="url(#reel)" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
@@ -20,8 +20,7 @@
     </g>
   </g>
   <text x="86" y="52" font-family="JetBrains Mono, 'SF Mono', Menlo, Consolas, 'DejaVu Sans Mono', monospace" font-size="20" font-weight="800">
-    <tspan fill="#E6EDF3">Agent</tspan><tspan fill="#39FF88">Tape</tspan>
-    <tspan fill="#7D8A99" font-size="14" font-weight="400"> · agent replay</tspan>
+    <tspan fill="#E6EDF3">PR</tspan><tspan fill="#39FF88">tape</tspan>
   </text>
   <rect x="687.8" y="34" width="114.19999999999999" height="28" rx="14" fill="#1B2430" stroke="#263241"/>
   <text x="744.9" y="53" fill="#E6EDF3" font-family="JetBrains Mono, 'SF Mono', Menlo, Consolas, 'DejaVu Sans Mono', monospace" font-size="13" text-anchor="middle">Claude Code</text>
