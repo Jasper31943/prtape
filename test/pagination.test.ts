@@ -54,6 +54,7 @@ describe("synthetic pagination session", () => {
     assert.equal(normalizeSpace(raw).includes(normalizeSpace(DECISION)), true);
     assertDecisionWordsAreInSession(presented.summary.decision, raw, FALLBACK);
     assert.match(renderComment(summary), /6 failed → 13\/13 pass/);
+    assert.doesNotMatch(renderComment(summary), /[✓✔✕]/);
     const published = toPublicJson(presented.summary) as { steps: { kind: string; path?: string }[] };
     assert.equal(published.steps.some((step) => step.kind === "read" && !step.path), false);
     assert.equal(presented.summary.steps.some((step) => step.kind === "read" && !step.path), true);
@@ -64,6 +65,11 @@ describe("synthetic pagination session", () => {
     assert.doesNotMatch(svg, /#33445A/);
     assert.deepEqual(trackLabels(svg), ["fail", "read", "edit", "pass", "commit"]);
     assert.match(svg, /Fix off-by-one that dropped the last record on a page/);
+    assert.match(
+      svg,
+      /<tspan fill="#FF5C7A">6 failed<\/tspan><tspan fill="#7D8A99"> → <\/tspan><tspan fill="#3DDC84">13\/13 pass<\/tspan>/,
+    );
+    assert.doesNotMatch(svg, /[✓✔✕]/);
     const json = JSON.stringify(toPublicJson(presented.summary));
     assert.equal(json.includes("\"sessionId\""), false);
     assert.equal(json.includes("synthetic-pagination"), false);

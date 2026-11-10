@@ -4,11 +4,36 @@ import path from "node:path";
 import { describe, it } from "node:test";
 import { parseAider } from "../src/adapters/aider.js";
 import { parseClaude } from "../src/adapters/claude.js";
-import { asciiFlow } from "../src/timeline/format.js";
+import { asciiFlow, testsPhrase } from "../src/timeline/format.js";
 import { renderComment } from "../src/timeline/md.js";
 import { renderSvg } from "../src/timeline/svg.js";
+import type { SessionSummary } from "../src/types.js";
 import { SECRET_CANARIES } from "./canaries.js";
 import { fixture, root, trackLabels } from "./helpers.js";
+
+describe("tests row", () => {
+  it("shows a counted pass with no icon when nothing failed", () => {
+    const summary: SessionSummary = {
+      source: "claude-code",
+      sessionId: "synthetic-one-pass",
+      title: "Run the catalog tests",
+      decision: "The suite passed.",
+      files: [],
+      tests: [{ command: "npm test", outcome: "pass", passed: 13, failed: 0, total: 13 }],
+      events: [{ kind: "test", command: "npm test", outcome: "pass", passed: 13, failed: 0, total: 13 }],
+      testsRun: true,
+      steps: [],
+    };
+    assert.equal(testsPhrase(summary), "13/13 pass");
+    const svg = renderSvg(summary);
+    const comment = renderComment(summary);
+    assert.match(svg, /fill="#3DDC84"[^>]*>13\/13 pass</);
+    assert.doesNotMatch(svg, /→|✓|✔|✕/);
+    assert.match(comment, /13\/13 pass/);
+    assert.doesNotMatch(comment, /[✓✔✕]/);
+    assert.match(comment, /Tests pass/);
+  });
+});
 
 describe("timeline snapshots", () => {
   it("matches the Claude comment and preview SVG", () => {
@@ -36,6 +61,8 @@ describe("timeline snapshots", () => {
     assert.match(svg, /TESTS RAN/);
     assert.match(svg, /KEY DECISION/);
     assert.match(svg, /npm test · pass/);
+    assert.doesNotMatch(svg, /[✓✔✕]/);
+    assert.doesNotMatch(comment, /[✓✔✕]/);
     assert.match(svg, /#0B0F14/);
     assert.match(svg, /#39FF88/);
     assert.match(svg, /#22D3EE/);

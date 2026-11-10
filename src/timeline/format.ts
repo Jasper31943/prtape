@@ -25,17 +25,31 @@ export function filesDetail(summary: SessionSummary, maxNames = 3): string {
 
 /**
  * Reviewer-facing test line.
- * When the first failure and the last run both published counts, show
- * `6 failed → 13/13 pass`. Otherwise the last command, such as `npm test · pass`.
+ * A fail-then-pass pair with counts is `6 failed → 13/13 pass`.
+ * One passing run with counts is `13/13 pass`.
+ * Otherwise the last command, such as `npm test · pass`.
  */
 export function testsPhrase(summary: SessionSummary): string {
   const transition = testsTransition(summary);
   if (transition) return `${transition.failed} failed → ${transition.passed}/${transition.total} pass`;
+  const only = solePass(summary);
+  if (only) return `${only.passed}/${only.total} pass`;
   const last = summary.tests.at(-1);
   if (!last) return "not run";
   const word = last.outcome === "pass" ? "pass" : last.outcome === "fail" ? "fail" : "ran";
   const command = oneLine(last.command);
   return command ? `${command} · ${word}` : word;
+}
+
+/** One passing run, and no failure, when that run published both counts. */
+export function solePass(summary: SessionSummary): { passed: number; total: number } | undefined {
+  if (summary.tests.length !== 1) return undefined;
+  const only = summary.tests[0];
+  if (!only || only.outcome !== "pass") return undefined;
+  if (typeof only.passed !== "number" || typeof only.total !== "number") return undefined;
+  if (!Number.isInteger(only.passed) || !Number.isInteger(only.total)) return undefined;
+  if (only.failed !== undefined && only.failed !== 0) return undefined;
+  return { passed: only.passed, total: only.total };
 }
 
 export function testsTransition(summary: SessionSummary): { failed: number; passed: number; total: number } | undefined {

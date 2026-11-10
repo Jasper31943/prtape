@@ -4,7 +4,7 @@ import { presentSummary } from "../display.js";
 import { escapeXml } from "../text.js";
 import { rollupTests } from "../summary.js";
 import type { TimelineEvent } from "../types.js";
-import { sourceLabel, testsPhrase, testsTransition } from "./format.js";
+import { solePass, sourceLabel, testsPhrase, testsTransition } from "./format.js";
 import { textWidth, wrapText } from "./wrap.js";
 
 const WIDTH = 960;
@@ -230,18 +230,17 @@ function filesRow(summary: SessionSummary): string {
 function testsRow(summary: SessionSummary): string {
   const y = 226;
   const transition = testsTransition(summary);
+  const only = solePass(summary);
   const outcome = rollupTests(summary.tests);
   const color = outcome === "pass" ? ADD : outcome === "fail" ? REMOVE : MUTED;
-  const mark = !summary.testsRun ? "–" : outcome === "fail" ? "✕" : "✓";
   const phrase = transition
-    ? `  <text x="72.0" y="${y + 56}" font-family="${MONO}" font-size="18"><tspan fill="${REMOVE}">${transition.failed} failed</tspan><tspan fill="${ADD}"> → ${transition.passed}/${transition.total} pass</tspan></text>`
-    : text(72, y + 56, testsPhrase(summary), { size: 18, fill: color, family: "mono" });
-  return [
-    row(y, 78),
-    heading(y, "TESTS RAN", ""),
-    text(48, y + 56, mark, { size: 18, fill: color, family: "sans", weight: 700 }),
-    phrase,
-  ].join("\n");
+    ? `  <text x="48.0" y="${y + 56}" font-family="${MONO}" font-size="18"><tspan fill="${REMOVE}">${transition.failed} failed</tspan><tspan fill="${MUTED}"> → </tspan><tspan fill="${ADD}">${transition.passed}/${transition.total} pass</tspan></text>`
+    : text(48, y + 56, only ? `${only.passed}/${only.total} pass` : testsPhrase(summary), {
+        size: 18,
+        fill: only ? ADD : color,
+        family: "mono",
+      });
+  return [row(y, 78), heading(y, "TESTS RAN", ""), phrase].join("\n");
 }
 
 function decisionRow(decision: string): string {

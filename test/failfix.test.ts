@@ -172,6 +172,11 @@ describe("synthetic fail-then-fix session", () => {
     assert.match(svg, /math\.test\.js/);
     assert.match(svg, /1 failed/);
     assert.match(svg, /1\/1 pass/);
+    assert.match(
+      svg,
+      /<tspan fill="#FF5C7A">1 failed<\/tspan><tspan fill="#7D8A99"> → <\/tspan><tspan fill="#3DDC84">1\/1 pass<\/tspan>/,
+    );
+    assert.doesNotMatch(svg, /[✓✔✕]/);
     assert.doesNotMatch(svg, /npm test · fail/);
     for (const rendered of [comment, svg, json]) {
       assert.equal(rendered.includes("[REDACTED"), false);
