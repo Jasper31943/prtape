@@ -1,8 +1,16 @@
 # PRtape
 
-See what your AI agent actually did. What the agent did, on the PR.
+![PRtape: what your AI agent did, on the PR](docs/hero.png)
 
-One image on the pull request, for reviewers. Claude Code only for now.
+See what your AI agent actually did.
+
+```bash
+npx prtape pr
+```
+
+- Reads the newest Claude Code session on your machine.
+- Posts one redacted image on the pull request: files touched, tests, and the decision.
+- Leaves the raw session off the PR.
 
 ## Happy path
 
@@ -32,11 +40,9 @@ On the happy path the comment leads with the image, then the decision and a shor
 | Tests | yes · pass |
 ```
 
-ASCII and mermaid appear only when the PNG was not pushed. The preview below is the SVG checked into this repo, not the orphan ref:
+The preview below is the SVG checked into this repo, not the orphan ref:
 
-![PRtape timeline preview](https://raw.githubusercontent.com/Jasper31943/prtape/main/docs/preview.svg)
-
-Tokens in square brackets in the fixture render are redaction markers, not real secrets.
+![PRtape timeline preview](docs/preview.svg)
 
 ## Orphan ref
 
@@ -64,10 +70,6 @@ Visibility is not the same on public and private repos.
 - **Private repo.** Logged-out users, email notifications, and some mobile clients may show a broken image. Collaborators who can open the repo usually see it.
 
 If `gh` is missing or not logged in, or the push to `refs/prtape/…` is denied, the command prints a one-glance error (what failed, and the fix) and posts or prints the text timeline only. That comment has no image URL.
-
-## Demo
-
-A recorded GIF belongs at `https://raw.githubusercontent.com/Jasper31943/prtape/main/docs/demo.gif`. It is not in v0.1. Before announcing the release, replace this note with a short capture of `npx prtape pr --dry-run` and the comment it would post. Until then, the SVG above is the visual.
 
 ## Redaction
 
@@ -127,6 +129,14 @@ npx prtape pr --dry-run
 ```
 
 原始工作階段不會寫進專案目錄。PNG 放在 `refs/prtape/<head>`，不會進 main。公開倉庫的未登入讀者也看得到 `github.com/.../raw/<sha>/timeline.png`；私人倉庫則不同，未登入、郵件通知與部分手機客戶端可能只看到破圖，有權限的協作者通常看得到。Cursor 支援與 Claude Code `SessionEnd` hook 留到 v0.2。
+
+## FAQ
+
+ASCII and mermaid appear only when the PNG was not pushed.
+
+Tokens in square brackets in the fixture render are redaction markers, not real secrets.
+
+A recorded GIF is not in v0.1. The SVG in this README is the visual until a short capture of `npx prtape pr --dry-run` replaces this note.
 
 ## License
 
