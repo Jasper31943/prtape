@@ -5,7 +5,7 @@ import path from "node:path";
 import { parseClaude } from "./adapters/claude.js";
 import type { SourceKind } from "./types.js";
 
-export type SourceChoice = "auto" | "claude" | "aider";
+export type SourceChoice = "auto" | "claude";
 
 export interface DiscoverOptions {
   cwd: string;
@@ -75,22 +75,6 @@ export function listClaudeSessions(claudeHome: string): string[] {
   return sessions;
 }
 
-/** Walk upward from `start` for `.aider.chat.history.md`. */
-export function findAiderHistory(start: string): string | null {
-  let dir = path.resolve(start);
-  const root = path.parse(dir).root;
-  const seen = new Set<string>();
-  for (let depth = 0; depth < 32; depth += 1) {
-    if (seen.has(dir)) return null;
-    seen.add(dir);
-    const candidate = path.join(dir, ".aider.chat.history.md");
-    if (fs.existsSync(candidate) && fs.statSync(candidate).isFile()) return candidate;
-    if (dir === root) return null;
-    dir = path.dirname(dir);
-  }
-  return null;
-}
-
 export function selectClaudeSession(
   files: string[],
   targetCwd: string,
@@ -133,39 +117,10 @@ export function selectClaudeSession(
 }
 
 export function findSession(options: DiscoverOptions): FoundSession {
-  const wantClaude = options.source !== "aider";
-  const wantAider = options.source !== "claude";
   const recent = options.recentFiles ?? gitChangedFiles(options.cwd);
-  const claude = wantClaude
-    ? selectClaudeSession(listClaudeSessions(options.claudeHome), options.cwd, recent)
-    : null;
-  const aider = wantAider ? findAiderHistory(options.cwd) : null;
-
-  if (options.source === "claude") {
-    if (!claude) throw new NoSessionError(missingClaude(options.cwd));
-    return { source: "claude-code", path: claude };
-  }
-  if (options.source === "aider") {
-    if (!aider) throw new NoSessionError(missingAider(options.cwd));
-    return { source: "aider", path: aider };
-  }
-  if (claude && aider) {
-    const claudeNewer = fs.statSync(claude).mtimeMs >= fs.statSync(aider).mtimeMs;
-    return claudeNewer
-      ? {
-          source: "claude-code",
-          path: claude,
-          note: "Using the Claude Code session because it is newer.",
-        }
-      : {
-          source: "aider",
-          path: aider,
-          note: "Using the newer session file.",
-        };
-  }
-  if (claude) return { source: "claude-code", path: claude };
-  if (aider) return { source: "aider", path: aider };
-  throw new NoSessionError(missingEither(options.cwd));
+  const claude = selectClaudeSession(listClaudeSessions(options.claudeHome), options.cwd, recent);
+  if (!claude) throw new NoSessionError(missingClaude(options.cwd));
+  return { source: "claude-code", path: claude };
 }
 
 export function gitChangedFiles(cwd: string): string[] {
@@ -234,10 +189,3 @@ function missingClaude(cwd: string): string {
   return `No Claude Code session for ${cwd}. Looked under the Claude projects directory for a session whose cwd matches this directory, or that edited the files git currently shows as changed. Pass --session <file.jsonl> to choose one.`;
 }
 
-function missingAider(cwd: string): string {
-  return `No .aider.chat.history.md in ${cwd} or its parents. Pass --session <file.md> to choose one.`;
-}
-
-function missingEither(cwd: string): string {
-  return `No Claude Code session for ${cwd}. Claude Code only for now. Pass --session <file.jsonl> to choose one. PRtape does not read Cursor sessions in v0.1.`;
-}

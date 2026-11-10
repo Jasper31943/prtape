@@ -1,4 +1,4 @@
-export type SourceKind = "claude-code" | "aider";
+export type SourceKind = "claude-code";
 
 export type FileAction = "edit" | "write" | "delete";
 

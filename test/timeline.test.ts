@@ -2,7 +2,6 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { describe, it } from "node:test";
-import { parseAider } from "../src/adapters/aider.js";
 import { parseClaude } from "../src/adapters/claude.js";
 import { asciiFlow, testsPhrase } from "../src/timeline/format.js";
 import { renderComment } from "../src/timeline/md.js";
@@ -83,12 +82,5 @@ describe("timeline snapshots", () => {
       assert.equal(comment.includes(canary), false);
       assert.equal(svg.includes(canary), false);
     }
-  });
-
-  it("matches the Aider comment snapshot", () => {
-    const summary = parseAider(fixture("aider-chat-history.md"), "aider-chat-history.md");
-    const comment = renderComment(summary);
-    assert.equal(asciiFlow(summary), "ask ──▶ 1 file ──▶ tests pass ──▶ ship");
-    assert.equal(comment, fs.readFileSync(path.join(root, "fixtures", "aider-comment.md"), "utf8"));
   });
 });

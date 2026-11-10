@@ -27,12 +27,4 @@ export const CLAUDE_LEAK_MARKERS = [
   "IGNORE_SNAPSHOT_MARKER",
 ] as const;
 
-export const AIDER_LEAK_MARKERS = [
-  "OLDSESSIONSHOULDNOTRENDER",
-  "CONTENT_CANARY_DO_NOT_LEAK",
-  "FENCED_PROMPT_MARKER",
-  "src/fenced-trap.ts",
-  "src/old.ts",
-] as const;
-
 export const ACTIVE_MARKER = "ACTIVE_SESSION_OK";

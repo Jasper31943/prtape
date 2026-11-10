@@ -22,7 +22,7 @@ interface Args {
 }
 
 const HELP = `PRtape puts one image on the pull request.
-See what your AI agent actually did. Agent replay on the PR.
+See what your AI agent actually did. What the agent did, on the PR.
 
 Usage:
   prtape pr [options]
@@ -202,7 +202,7 @@ function parseArgs(argv: string[]): Args {
         break;
       case "--source": {
         const value = take();
-        if (value !== "auto" && value !== "claude" && value !== "aider") {
+        if (value !== "auto" && value !== "claude") {
           throw new Error(`Unknown --source ${value}. Use auto or claude.`);
         }
         args.source = value;

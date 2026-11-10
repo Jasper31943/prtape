@@ -123,12 +123,37 @@ describe("private path deletion", () => {
         tests: [{ command: `npm test 2>&1 | tee ${TEE}`, outcome: "pass" }],
       }),
     );
-    const json = JSON.stringify(toPublicJson(presented.summary));
+    const published = toPublicJson(presented.summary) as { cwd?: string; files: { path: string }[] };
+    const json = JSON.stringify(published);
     assert.equal(presented.summary.title, "Fix /proj/math.js now.");
-    assert.equal(presented.summary.cwd, "/proj");
-    assert.equal(presented.summary.files[0]?.path, "proj/lib/add.js");
+    assert.equal("cwd" in published, false);
+    assert.equal(json.includes("Downloads"), false);
+    assert.equal(published.files[0]?.path, "proj/lib/add.js");
     assert.equal(presented.summary.tests[0]?.command, "npm test");
     for (const marker of PRIVATE_MARKERS) assert.equal(json.includes(marker), false, marker);
+  });
+
+  it("omits the session directory from public JSON", () => {
+    const presented = presentSummary(
+      withSteps({
+        source: "claude-code",
+        sessionId: "synthetic-downloads",
+        cwd: "/Users/patdoe/Downloads/catalog-demo",
+        title: "Fix the page slice.",
+        decision: "Use the full length.",
+        files: [{ path: "src/catalog.js", action: "edit" }],
+        tests: [],
+      }),
+    );
+    const published = toPublicJson(presented.summary) as { files: { path: string }[] };
+    const json = JSON.stringify(published);
+    assert.equal("cwd" in published, false);
+    assert.equal(json.includes("Downloads"), false);
+    assert.equal(json.includes("/Users/"), false);
+    assert.deepEqual(
+      published.files.map((file) => file.path),
+      ["src/catalog.js"],
+    );
   });
 });
 

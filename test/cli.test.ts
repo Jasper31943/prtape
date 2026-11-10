@@ -58,15 +58,17 @@ describe("cli", () => {
   });
 
   it("keeps stdout to the JSON document when --json is set", () => {
-    const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "agenttape-json-"));
-    const session = path.join(root, "fixtures", "aider-chat-history.md");
+    const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "prtape-json-"));
+    const session = path.join(root, "fixtures", "claude-session.jsonl");
     const result = run(["pr", "--json", "--dry-run", "--session", session, "--cwd", cwd], cwd);
     assert.equal(result.status, 0, result.stderr);
     const parsed = JSON.parse(result.stdout) as { testsRun: boolean; source: string; decision: string; title: string };
-    assert.equal(parsed.source, "aider");
+    assert.equal(parsed.source, "claude-code");
     assert.equal(parsed.testsRun, true);
-    assert.equal(parsed.title, "Strip secrets before posting the timeline.");
+    assert.equal(parsed.title, "Strip keys and internal hosts before posting.");
     assert.equal(parsed.decision, "Ship the redacted timeline; secrets stay off the PR.");
+    assert.equal("cwd" in parsed, false);
+    assert.equal(result.stdout.includes("Downloads"), false);
     assert.equal(parsed.title.includes("[REDACTED"), false);
     assert.equal(result.stdout.includes("[REDACTED"), false);
     assert.equal(result.stdout.includes("### PRtape"), false);

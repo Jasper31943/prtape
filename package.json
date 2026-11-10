@@ -1,7 +1,7 @@
 {
   "name": "prtape",
   "version": "0.1.0",
-  "description": "PRtape: See what your AI agent actually did. One image on the pull request.",
+  "description": "PRtape: See what your AI agent actually did. What the agent did, on the PR.",
   "license": "MIT",
   "author": "Jasper31943",
   "repository": {

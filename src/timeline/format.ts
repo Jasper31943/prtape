@@ -3,7 +3,7 @@ import { rollupTests } from "../summary.js";
 import { firstSentence, oneLine, truncate } from "../text.js";
 
 export function sourceLabel(source: SourceKind): string {
-  return source === "claude-code" ? "Claude Code" : "Aider";
+  return source === "claude-code" ? "Claude Code" : "Claude Code";
 }
 
 /** `2026-11-01T15:04:22.000Z` → `2026-11-01 15:04 UTC`. Naive timestamps omit UTC. */

@@ -6,7 +6,6 @@ import { describe, it } from "node:test";
 import {
   claudeProjectSlug,
   defaultClaudeHome,
-  findAiderHistory,
   findSession,
   listClaudeSessions,
   NoSessionError,
@@ -77,32 +76,6 @@ describe("discovery", () => {
     const chosen = selectClaudeSession(listClaudeSessions(home), "/workspace/demo", ["src/app.ts"]);
     assert.equal(chosen, match);
     assert.equal(selectClaudeSession(listClaudeSessions(home), "/workspace/demo", []), null);
-  });
-
-  it("finds Aider history in a parent directory", () => {
-    const root = tempDir();
-    const nested = path.join(root, "a", "b");
-    fs.mkdirSync(nested, { recursive: true });
-    const history = path.join(root, ".aider.chat.history.md");
-    fs.writeFileSync(history, "# aider chat started at 2026-01-01 00:00:00\n\n#### Hi\n");
-    assert.equal(findAiderHistory(nested), history);
-    assert.equal(findAiderHistory(tempDir()), null);
-  });
-
-  it("chooses the newer of Claude and Aider in auto mode", () => {
-    const root = tempDir();
-    const home = path.join(root, "claude");
-    const project = path.join(root, "repo");
-    fs.mkdirSync(project, { recursive: true });
-    const claude = writeSession(home, claudeProjectSlug(project), "s.jsonl", project, "src/app.ts");
-    const aider = path.join(project, ".aider.chat.history.md");
-    fs.writeFileSync(aider, "# aider chat started at 2026-01-01 00:00:00\n\n#### Hi\n");
-    const now = Date.now();
-    fs.utimesSync(claude, now / 1000 - 30, now / 1000 - 30);
-    fs.utimesSync(aider, now / 1000, now / 1000);
-    const found = findSession({ cwd: project, source: "auto", claudeHome: home, recentFiles: [] });
-    assert.equal(found.source, "aider");
-    assert.match(found.note ?? "", /newer/);
   });
 
   it("errors when nothing relevant is on disk", () => {

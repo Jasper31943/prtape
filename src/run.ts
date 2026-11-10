@@ -2,7 +2,6 @@ import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { parseAider } from "./adapters/aider.js";
 import { parseClaude } from "./adapters/claude.js";
 import {
   defaultClaudeHome,
@@ -70,13 +69,19 @@ export function toPublicJson(
     startedAt: summary.startedAt ?? null,
     model: summary.model ?? null,
     branch: summary.branch ?? null,
-    cwd: summary.cwd ?? null,
     title: summary.title,
     decision: summary.decision,
     testsRun: summary.testsRun,
     tests: summary.tests,
-    files: summary.files,
-    steps: publicSteps(summary.steps),
+    files: summary.files.filter((file) => isRepoRelative(file.path)),
+    steps: publicSteps(
+      summary.steps.flatMap((step) => {
+        if ((step.kind === "read" || step.kind === "edit") && step.path && !isRepoRelative(step.path)) {
+          return step.kind === "read" ? [{ ...step, path: undefined }] : [];
+        }
+        return [step];
+      }),
+    ),
     imageHosted: image.imageHosted,
     imageUrl: image.imageUrl ?? null,
   };
@@ -86,7 +91,7 @@ export async function runPr(options: RunOptions): Promise<RunResult> {
   const cwd = path.resolve(options.cwd);
   const found = locate(options, cwd);
   const raw = readSession(found.path);
-  const summary = parseFound(found.source, found.path, raw);
+  const summary = parseFound(found.path, raw);
   if (!summary.branch) {
     const branch = gitBranch(cwd);
     if (branch) summary.branch = branch;
@@ -216,8 +221,7 @@ function locate(options: RunOptions, cwd: string): { source: SourceKind; path: s
     if (!fs.existsSync(file) || !fs.statSync(file).isFile()) {
       throw new NoSessionError(`Session file not found: ${file}`);
     }
-    const sample = fs.readFileSync(file, "utf8");
-    return { source: detectSource(file, sample, options.source), path: file };
+    return { source: "claude-code", path: file };
   }
   const discover: DiscoverOptions = {
     cwd,
@@ -228,17 +232,16 @@ function locate(options: RunOptions, cwd: string): { source: SourceKind; path: s
   return findSession(discover);
 }
 
-function detectSource(file: string, text: string, forced: SourceChoice): SourceKind {
-  if (forced === "claude") return "claude-code";
-  if (forced === "aider") return "aider";
-  if (file.endsWith(".jsonl")) return "claude-code";
-  if (file.endsWith(".md")) return "aider";
-  return text.trimStart().startsWith("{") ? "claude-code" : "aider";
+function parseFound(file: string, raw: string): SessionSummary {
+  return parseClaude(raw, path.basename(file));
 }
 
-function parseFound(source: SourceKind, file: string, raw: string): SessionSummary {
-  const base = path.basename(file);
-  return source === "aider" ? parseAider(raw, base) : parseClaude(raw, base);
+/** A path a reviewer can place inside the repository. Home leftovers and absolutes stay out. */
+function isRepoRelative(filePath: string): boolean {
+  const value = filePath.replace(/\\/g, "/").trim();
+  if (!value || value.startsWith("/") || /^[A-Za-z]:\//.test(value)) return false;
+  if (value === ".." || value.startsWith("../") || value.includes("/../")) return false;
+  return true;
 }
 
 function readSession(file: string): string {

@@ -1,6 +1,6 @@
 # PRtape
 
-See what your AI agent actually did. Agent replay on the PR.
+See what your AI agent actually did. What the agent did, on the PR.
 
 One image on the pull request, for reviewers. Claude Code only for now.
 
