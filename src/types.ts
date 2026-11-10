@@ -12,14 +12,28 @@ export interface TouchedFile {
 export interface TestRun {
   command: string;
   outcome: TestOutcome;
+  /** Parsed from that run's reporter. Absent when the output has no counts. */
+  failed?: number;
+  passed?: number;
+  total?: number;
+  /** First failing test name, copied from the reporter line. */
+  failedName?: string;
 }
 
 /** One observed action, in the order it happened. Not a canned phase. */
 export type TimelineEvent = (
   | { kind: "read"; path?: string }
   | { kind: "edit"; path: string; action: FileAction; before?: string; after?: string }
-  | { kind: "test"; command: string; outcome: TestOutcome }
-  | { kind: "commit" }
+  | {
+      kind: "test";
+      command: string;
+      outcome: TestOutcome;
+      failed?: number;
+      passed?: number;
+      total?: number;
+      failedName?: string;
+    }
+  | { kind: "commit"; message?: string }
 ) & {
   /** Bash tool call that produced this event. Not shown on public steps. */
   batch?: string;

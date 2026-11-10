@@ -7,6 +7,7 @@ import {
   asciiFlow,
   decisionLine,
   formatWhen,
+  publicSteps,
   sourceLabel,
   stepText,
   testsPhrase,
@@ -31,6 +32,7 @@ export function renderComment(
   input: SessionSummary,
   options: RedactOptions = {},
   image?: CommentImage,
+  demo = false,
 ): string {
   const summary = presentSummary(input, options).summary;
   const decision = decisionLine(summary, 200);
@@ -62,6 +64,7 @@ export function renderComment(
         "",
         `**${escapeMdCell(decision)}**`,
         "",
+        ...(demo ? ["Demo project", ""] : []),
         ...table,
         "",
         image.dryRun ? dryRunNote() : visibilityNote(image.isPrivate),
@@ -74,6 +77,7 @@ export function renderComment(
         "",
         `**${escapeMdCell(decision)}**`,
         "",
+        ...(demo ? ["Demo project", ""] : []),
         "```text",
         asciiFlow(summary),
         "```",
@@ -87,7 +91,7 @@ export function renderComment(
         "<details>",
         "<summary>Steps</summary>",
         "",
-        ...summary.steps.map((step, index) => `${index + 1}. ${stepText(step)}`),
+        ...publicSteps(summary.steps).map((step, index) => `${index + 1}. ${stepText(step)}`),
         "",
         "</details>",
         "",

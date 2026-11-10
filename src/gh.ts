@@ -99,6 +99,23 @@ interface IssueComment {
  * A second run PATCHes the latest matching comment from the current `gh` user
  * instead of calling `gh pr comment` again.
  */
+/** Head branch of the pull request that will receive the comment. Undefined when gh cannot answer. */
+export async function pullRequestHead(
+  cwd: string,
+  runner: CommandRunner = defaultRunner,
+  prNumber?: number,
+): Promise<string | undefined> {
+  const selector = prNumber !== undefined ? [String(prNumber)] : [];
+  const view = await runner("gh", ["pr", "view", ...selector, "--json", "headRefName"], { cwd });
+  if (view.code !== 0) return undefined;
+  try {
+    const parsed = JSON.parse(view.stdout) as { headRefName?: unknown };
+    return typeof parsed.headRefName === "string" && parsed.headRefName.trim() ? parsed.headRefName.trim() : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 export async function postComment(
   cwd: string,
   body: string,

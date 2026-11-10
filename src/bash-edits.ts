@@ -11,7 +11,7 @@ export type BashEvent =
   | { kind: "read"; path?: string }
   | { kind: "edit"; path: string; action: "edit" | "write" }
   | { kind: "test" }
-  | { kind: "commit" };
+  | { kind: "commit"; message?: string };
 
 const READERS = new Set(["cat", "head", "tail", "less", "more", "bat", "nl"]);
 const SEARCHERS = new Set(["rg", "grep", "egrep", "fgrep"]);
@@ -172,7 +172,7 @@ function commandBase(word: string): string {
 function gitEvents(words: string[], head: string): BashEvent[] | undefined {
   if (head !== "git") return undefined;
   const sub = words[1] ?? "";
-  if (sub === "commit") return [{ kind: "commit" }];
+  if (sub === "commit") return [{ kind: "commit", message: commitMessage(words) }];
   if (sub !== "diff" && sub !== "show" && sub !== "status" && sub !== "log") return undefined;
   const files: string[] = [];
   for (const word of words.slice(2)) {
@@ -181,6 +181,17 @@ function gitEvents(words: string[], head: string): BashEvent[] | undefined {
     if (looksLikeFile(path)) files.push(path);
   }
   return files.length > 0 ? reads(files) : [{ kind: "read" }];
+}
+
+function commitMessage(words: string[]): string | undefined {
+  for (let index = 0; index < words.length; index += 1) {
+    const word = words[index] ?? "";
+    if (word === "-m" || word === "--message") {
+      const message = words[index + 1]?.trim();
+      return message || undefined;
+    }
+  }
+  return undefined;
 }
 
 function reads(files: string[]): BashEvent[] {

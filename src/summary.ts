@@ -78,7 +78,14 @@ function filesFrom(events: TimelineEvent[]): SessionDraft["files"] {
 function testsFrom(events: TimelineEvent[]): TestRun[] {
   return events
     .filter((event): event is Extract<TimelineEvent, { kind: "test" }> => event.kind === "test")
-    .map((event) => ({ command: event.command, outcome: event.outcome }));
+    .map((event) => ({
+      command: event.command,
+      outcome: event.outcome,
+      failed: event.failed,
+      passed: event.passed,
+      total: event.total,
+      failedName: event.failedName,
+    }));
 }
 
 function eventStep(event: TimelineEvent): Step {

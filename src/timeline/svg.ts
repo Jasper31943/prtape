@@ -4,7 +4,7 @@ import { presentSummary } from "../display.js";
 import { escapeXml } from "../text.js";
 import { rollupTests } from "../summary.js";
 import type { TimelineEvent } from "../types.js";
-import { sourceLabel, testsPhrase } from "./format.js";
+import { sourceLabel, testsPhrase, testsTransition } from "./format.js";
 import { textWidth, wrapText } from "./wrap.js";
 
 const WIDTH = 960;
@@ -23,7 +23,8 @@ const ACCENT = "#39FF88";
 const ACCENT2 = "#22D3EE";
 const ADD = "#3DDC84";
 const REMOVE = "#FF5C7A";
-const READ = "#33445A";
+/** Same brightness as the other phase colors. #33445A sat in the background and looked unused. */
+const READ = "#7A8FB0";
 const CHIP = "#0F2A1D";
 
 const BEAT_COLOR: Record<string, string> = {
@@ -38,7 +39,7 @@ const BEAT_COLOR: Record<string, string> = {
  * 960×480 PR timeline. Six-segment horizontal track, then FILES / TESTS /
  * KEY DECISION. Secrets are omitted, not masked in the body or the footer.
  */
-export function renderSvg(input: SessionSummary, options: RedactOptions = {}): string {
+export function renderSvg(input: SessionSummary, options: RedactOptions = {}, demo = false): string {
   const { summary, maskedCount } = presentSummary(input, options);
   const beats = observedBeats(summary);
   const source = sourceLabel(summary.source);
@@ -59,7 +60,7 @@ export function renderSvg(input: SessionSummary, options: RedactOptions = {}): s
   parts.push(`  <rect x="16" y="16" width="928" height="448" rx="14" fill="${CARD}" stroke="${ACCENT}" stroke-width="1.5"/>`);
   parts.push(reelMark(28, 26, 48));
   parts.push(wordmark(86, 52));
-  parts.push(chips(source, maskedCount));
+  parts.push(chips(source, maskedCount, demo));
   parts.push(track(beats));
   parts.push(filesRow(summary));
   parts.push(testsRow(summary));
@@ -154,17 +155,26 @@ function wordmark(x: number, y: number): string {
   ].join("\n");
 }
 
-function chips(source: string, maskedCount: number): string {
+function chips(source: string, maskedCount: number, demo: boolean): string {
   const masked = maskedCount > 0 ? `redacted ×${maskedCount}` : "";
   const maskedW = masked ? Math.max(108, masked.length * 8 + 22) : 0;
   const sourceW = Math.max(108, source.length * 8.2 + 24);
+  const demoLabel = demo ? "Demo project" : "";
+  const demoW = demoLabel ? Math.max(108, demoLabel.length * 8.2 + 24) : 0;
   const right = 928;
   const maskedX = right - maskedW;
   const sourceX = (masked ? maskedX : right) - 8 - sourceW;
+  const demoX = sourceX - (demoW ? 8 + demoW : 0);
   const chunks = [
     `  <rect x="${sourceX}" y="34" width="${sourceW}" height="28" rx="14" fill="${TRACK}" stroke="#263241"/>`,
     text(sourceX + sourceW / 2, 53, source, { size: 13, fill: INK, family: "mono", anchor: "middle" }),
   ];
+  if (demoLabel) {
+    chunks.push(
+      `  <rect x="${demoX}" y="34" width="${demoW.toFixed(1)}" height="28" rx="14" fill="none" stroke="${MUTED}"/>`,
+    );
+    chunks.push(text(demoX + demoW / 2, 53, demoLabel, { size: 13, fill: MUTED, family: "mono", anchor: "middle" }));
+  }
   if (masked) {
     chunks.push(`  <rect x="${maskedX}" y="34" width="${maskedW}" height="28" rx="14" fill="${CHIP}" stroke="${ACCENT}"/>`);
     chunks.push(text(maskedX + maskedW / 2, 53, masked, { size: 13, fill: ACCENT, family: "mono", weight: 700, anchor: "middle" }));
@@ -219,15 +229,18 @@ function filesRow(summary: SessionSummary): string {
 
 function testsRow(summary: SessionSummary): string {
   const y = 226;
-  const phrase = testsPhrase(summary);
+  const transition = testsTransition(summary);
   const outcome = rollupTests(summary.tests);
   const color = outcome === "pass" ? ADD : outcome === "fail" ? REMOVE : MUTED;
   const mark = !summary.testsRun ? "–" : outcome === "fail" ? "✕" : "✓";
+  const phrase = transition
+    ? `  <text x="72.0" y="${y + 56}" font-family="${MONO}" font-size="18"><tspan fill="${REMOVE}">${transition.failed} failed</tspan><tspan fill="${ADD}"> → ${transition.passed}/${transition.total} pass</tspan></text>`
+    : text(72, y + 56, testsPhrase(summary), { size: 18, fill: color, family: "mono" });
   return [
     row(y, 78),
     heading(y, "TESTS RAN", ""),
     text(48, y + 56, mark, { size: 18, fill: color, family: "sans", weight: 700 }),
-    text(72, y + 56, phrase, { size: 18, fill: color, family: "mono" }),
+    phrase,
   ].join("\n");
 }
 

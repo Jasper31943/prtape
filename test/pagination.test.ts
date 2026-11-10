@@ -9,11 +9,13 @@ import { parseClaude } from "../src/adapters/claude.js";
 import { resolveReadGlobs } from "../src/bash-edits.js";
 import { presentSummary, scrubTitle } from "../src/display.js";
 import { withSteps } from "../src/summary.js";
+import { renderComment } from "../src/timeline/md.js";
 import { renderSvg } from "../src/timeline/svg.js";
 import { toPublicJson } from "../src/run.js";
 import { fixture, trackLabels } from "./helpers.js";
 
-const DECISION = "In src/catalog.js, use stored.length instead of stored.length - 1.";
+const REASON = "dropped the last record on a page";
+const DECISION = `${REASON}: use stored.length, not stored.length - 1.`;
 
 describe("synthetic pagination session", () => {
   const raw = fixture("synthetic-pagination.jsonl");
@@ -48,16 +50,37 @@ describe("synthetic pagination session", () => {
     );
     assert.equal(presented.summary.title, "Fix the page slice so the last item is included.");
     assert.equal(presented.summary.decision, DECISION);
+    assert.equal(raw.includes(REASON), true);
+    assert.equal(presented.summary.decision.includes("last page dropped"), false);
+    assert.match(renderComment(summary), /6 failed → 13\/13 pass/);
+    const published = toPublicJson(presented.summary) as { steps: { kind: string; path?: string }[] };
+    assert.equal(published.steps.some((step) => step.kind === "read" && !step.path), false);
+    assert.equal(presented.summary.steps.some((step) => step.kind === "read" && !step.path), true);
     assert.equal(presented.summary.title.includes("pasted_content"), false);
     assert.equal(presented.summary.title.includes("demo"), false);
     const svg = renderSvg(summary);
+    assert.match(svg, /#7A8FB0/);
+    assert.doesNotMatch(svg, /#33445A/);
     assert.deepEqual(trackLabels(svg), ["fail", "read", "edit", "pass", "commit"]);
-    assert.match(svg, /stored\.length instead of stored\.length - 1/);
+    assert.match(svg, /use stored\.length, not stored\.length - 1/);
     const json = JSON.stringify(toPublicJson(presented.summary));
     assert.equal(json.includes("\"sessionId\""), false);
     assert.equal(json.includes("synthetic-pagination"), false);
     assert.equal(json.includes("pasted_content"), false);
     assert.equal(json.includes(DECISION), true);
+  });
+});
+
+describe("demo label", () => {
+  it("draws an outlined Demo project pill and a plain comment tag only when asked", () => {
+    const summary = parseClaude(fixture("synthetic-pagination.jsonl"), "synthetic-pagination.jsonl");
+    const plain = renderSvg(summary);
+    const tagged = renderSvg(summary, {}, true);
+    assert.equal(plain.includes("Demo project"), false);
+    assert.match(tagged, /Demo project/);
+    assert.match(tagged, /fill="none" stroke="#7D8A99"/);
+    assert.match(renderComment(summary, {}, undefined, true), /^Demo project$|Demo project\n/m);
+    assert.equal(renderComment(summary).includes("Demo project"), false);
   });
 });
 
@@ -115,5 +138,11 @@ describe("pasted title wrappers", () => {
       "Fix the page slice so the last item is included.",
     );
     assert.equal(scrubTitle("Be concise. Answer in English."), "Be concise.");
+    assert.equal(
+      scrubTitle(
+        "text 請先執行 npm test，確認並保留失敗結果，再修正錯誤。add 應維持一般加法的行為，不要刪除或跳過測試。修完請再次執行 npm test，確認全部通過。",
+      ),
+      "請先執行 npm test，確認並保留失敗結果，再修正錯誤。",
+    );
   });
 });

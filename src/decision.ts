@@ -44,9 +44,45 @@ function smallSourceEdit(summary: SessionSummary): string | undefined {
   if (!edit?.before || !edit.after) return undefined;
   const change = spanChange(edit.before, edit.after);
   if (!change) return undefined;
-  const sentence = `In ${edit.path}, use ${change.added} instead of ${change.removed}.`;
-  if (sentence.length > 160) return undefined;
+  const why = evidenceReason(summary);
+  const sentence = why
+    ? `${why}: use ${change.added}, not ${change.removed}.`
+    : `In ${edit.path}, use ${change.added} instead of ${change.removed}.`;
+  if (sentence.length > 180) return undefined;
   return sentence;
+}
+
+/** A short clause copied from a commit message, failing test name, or assistant line. */
+function evidenceReason(summary: SessionSummary): string | undefined {
+  for (const event of summary.events) {
+    if (event.kind !== "commit" || !event.message) continue;
+    const clause = reasonClause(event.message);
+    if (clause) return clause;
+  }
+  for (const event of summary.events) {
+    if (event.kind === "test" && event.failedName && isReasonSpan(event.failedName)) return event.failedName;
+  }
+  const prose = reasonClause(summary.decision);
+  if (prose && summary.decision.includes(prose) && !isStatusReason(prose)) return prose;
+  return undefined;
+}
+
+function reasonClause(message: string): string | undefined {
+  const pieces = message
+    .split(/\n+|(?<=[.!?])\s+|:\s+/)
+    .map((piece) => piece.trim().replace(/^[.!?]+|[.!?]+$/g, "").trim())
+    .filter((piece) => piece.length >= 12 && piece.length <= 90 && message.includes(piece));
+  const descriptive = pieces.find((piece) => !/^(?:fix|update|change|commit)\b/i.test(piece));
+  return descriptive ?? pieces[0];
+}
+
+function isReasonSpan(text: string): boolean {
+  const trimmed = text.trim();
+  return trimmed.length >= 12 && trimmed.length <= 90 && trimmed.includes(" ") && !/^(?:fix|update|change)\b/i.test(trimmed);
+}
+
+function isStatusReason(text: string): boolean {
+  return /\b(?:tests?|suite) (?:passed|passes|failed)\b/i.test(text) || /全部通過|測試通過/.test(text);
 }
 
 function spanChange(before: string, after: string): { removed: string; added: string } | undefined {

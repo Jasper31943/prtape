@@ -17,6 +17,7 @@ interface Args {
   json: boolean;
   redactEmails: boolean;
   prNumber?: number;
+  demo: boolean;
 }
 
 const HELP = `AgentTape turns a local coding-agent session into a redacted PR timeline.
@@ -34,6 +35,8 @@ Options:
   --dry-run                Print the comment and do not call gh
   --json                   Print the redacted summary as JSON on stdout
   --redact-emails          Also redact email addresses
+  --demo                   Tag the timeline as a Demo project
+  --label demo             Same as --demo
   -h, --help               Show this help
   -V, --version            Show the version
 
@@ -82,6 +85,7 @@ async function main(argv: string[]): Promise<number> {
       dryRun: args.dryRun,
       redactEmails: args.redactEmails,
       prNumber: args.prNumber,
+      demo: args.demo,
     });
     writeResult(result, args.json);
     return 0;
@@ -138,6 +142,7 @@ function parseArgs(argv: string[]): Args {
     dryRun: false,
     json: false,
     redactEmails: false,
+    demo: false,
   };
   const rest = argv.slice(2);
   const positional: string[] = [];
@@ -169,6 +174,12 @@ function parseArgs(argv: string[]): Args {
         break;
       case "--redact-emails":
         args.redactEmails = true;
+        break;
+      case "--demo":
+        args.demo = true;
+        break;
+      case "--label":
+        if (take() === "demo") args.demo = true;
         break;
       case "--cwd":
         args.cwd = take();

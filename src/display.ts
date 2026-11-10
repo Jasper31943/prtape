@@ -47,19 +47,32 @@ export function presentSummary(input: SessionSummary, options: RedactOptions = {
   };
 }
 
+const FENCE_LANG = /^(?:text|bash|sh|shell|md|markdown|json|javascript|js|ts|typescript|python|py|diff|plaintext)\s+/i;
+
 export function scrubTitle(text: string, options: RedactOptions = {}): string {
   // Emails never lead the title. A sentence that is only an address is dropped.
-  const clean = scrubProse(stripPastedWrappers(text), { ...options, emails: true });
-  const sentences = splitSentences(clean).filter((sentence) => sentence && !isOnlyEmail(sentence));
+  const clean = scrubProse(stripFenceLang(stripPastedWrappers(text)), { ...options, emails: true });
+  const sentences = splitSentences(clean)
+    .map((sentence) => stripFenceLang(sentence))
+    .filter((sentence) => sentence && !isOnlyEmail(sentence));
   const task =
     sentences.find((sentence) => isTaskSentence(sentence)) ??
-    sentences.find((sentence) => !isMetaInstruction(sentence)) ??
+    sentences.find((sentence) => !isMetaInstruction(sentence) && !isConstraintSentence(sentence)) ??
     sentences[0] ??
     "";
   return task;
 }
 
-const TASK_VERBS = /^(?:fix|make|add|find|implement|update|run|change|correct|strip|remove|keep)\b/i;
+const TASK_VERBS = /^(?:fix|make|add|find|implement|update|run|change|correct|strip|remove|keep|請|修正|修|新增|實作|更新|執行|找出|改)/i;
+
+function stripFenceLang(text: string): string {
+  return text.replace(FENCE_LANG, "").trim();
+}
+
+function isConstraintSentence(sentence: string): boolean {
+  if (isTaskSentence(sentence)) return false;
+  return /不要|別[刪跳]|don't\b|do not\b|must not\b|\bnever\b/i.test(sentence);
+}
 
 function isTaskSentence(sentence: string): boolean {
   return TASK_VERBS.test(sentence.trim());

@@ -23,13 +23,32 @@ export function filesDetail(summary: SessionSummary, maxNames = 3): string {
   return extra > 0 ? `${listed} · +${extra}` : listed;
 }
 
-/** Reviewer-facing test line. Uses the last run, so a repair is `npm test · pass`. */
+/**
+ * Reviewer-facing test line.
+ * When the first failure and the last run both published counts, show
+ * `6 failed → 13/13 pass`. Otherwise the last command, such as `npm test · pass`.
+ */
 export function testsPhrase(summary: SessionSummary): string {
+  const transition = testsTransition(summary);
+  if (transition) return `${transition.failed} failed → ${transition.passed}/${transition.total} pass`;
   const last = summary.tests.at(-1);
   if (!last) return "not run";
   const word = last.outcome === "pass" ? "pass" : last.outcome === "fail" ? "fail" : "ran";
   const command = oneLine(last.command);
   return command ? `${command} · ${word}` : word;
+}
+
+export function testsTransition(summary: SessionSummary): { failed: number; passed: number; total: number } | undefined {
+  const firstFail = summary.tests.find((test) => test.outcome === "fail" && typeof test.failed === "number" && test.failed > 0);
+  const last = summary.tests.at(-1);
+  if (!firstFail || last?.outcome !== "pass") return undefined;
+  if (typeof last.passed !== "number" || typeof last.total !== "number") return undefined;
+  if (!Number.isInteger(firstFail.failed) || !Number.isInteger(last.passed) || !Number.isInteger(last.total)) return undefined;
+  return { failed: firstFail.failed as number, passed: last.passed, total: last.total };
+}
+
+export function publicSteps(steps: Step[]): Step[] {
+  return steps.filter((step) => step.kind !== "read" || Boolean(step.path));
 }
 
 export function asciiFlow(summary: SessionSummary): string {

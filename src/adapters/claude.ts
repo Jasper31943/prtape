@@ -3,7 +3,7 @@ import type { SessionSummary, TestOutcome, TimelineEvent } from "../types.js";
 import { FALLBACK_DECISION, FALLBACK_TITLE } from "../types.js";
 import { bashEvents, pathsInText, resolveReadGlobs } from "../bash-edits.js";
 import { withSteps } from "../summary.js";
-import { classifyTestOutput } from "../tests-detect.js";
+import { classifyTestOutput, parseTestCounts } from "../tests-detect.js";
 import { oneLine } from "../text.js";
 
 /**
@@ -151,7 +151,7 @@ function toolEvents(name: string, input: Record<string, unknown>, cwd: string | 
       if (event.kind === "edit") return { kind: "edit", path: displayPath(event.path, cwd), action: event.action, batch };
       if (event.kind === "read") return { kind: "read", path: event.path ? displayPath(event.path, cwd) : undefined, batch };
       if (event.kind === "test") return { kind: "test", command, toolId, batch };
-      return { kind: "commit", batch };
+      return { kind: "commit", batch, message: event.message };
     });
   }
   const tool = name.toLowerCase();
@@ -167,7 +167,8 @@ function resolveEvent(item: Pending, results: Map<string, ToolResult>): Timeline
   if (item.kind !== "test") return item;
   const result = item.toolId ? results.get(item.toolId) : undefined;
   const outcome: TestOutcome = result ? classifyTestOutput(result.text, result.isError, result.interrupted) : "unknown";
-  return { kind: "test", command: item.command, outcome, batch: item.batch };
+  const counts = result ? parseTestCounts(result.text) : {};
+  return { kind: "test", command: item.command, outcome, batch: item.batch, ...counts };
 }
 
 function fileEdit(tool: string, input: Record<string, unknown>, cwd: string | undefined): Pending | undefined {

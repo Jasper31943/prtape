@@ -55,6 +55,33 @@ export function classifyTestOutput(
   return "unknown";
 }
 
+export interface ParsedTestCounts {
+  failed?: number;
+  passed?: number;
+  total?: number;
+  failedName?: string;
+}
+
+/** Counts and the first failing name. Missing fields stay unset. Nothing is guessed. */
+export function parseTestCounts(output: string): ParsedTestCounts {
+  const counts: ParsedTestCounts = {};
+  const failed = lastTapCount(output, "fail") ?? firstNumber(output, /(\d+)\s+failed\b/i);
+  const passed = lastTapCount(output, "pass") ?? firstNumber(output, /(\d+)\s+passed\b/i);
+  const total = lastTapCount(output, "tests") ?? firstNumber(output, /(\d+)\s+total\b/i);
+  if (failed !== undefined) counts.failed = failed;
+  if (passed !== undefined) counts.passed = passed;
+  if (total !== undefined) counts.total = total;
+  const name = /^not ok \d+ - (.+)$/m.exec(output)?.[1]?.trim();
+  if (name) counts.failedName = name;
+  return counts;
+}
+
+function firstNumber(output: string, pattern: RegExp): number | undefined {
+  const match = pattern.exec(output);
+  if (!match?.[1]) return undefined;
+  return Number(match[1]);
+}
+
 function lastTapCount(output: string, label: string): number | undefined {
   const pattern = new RegExp(`^\\s*#\\s+${label}\\s+(\\d+)\\s*$`, "gim");
   let last: number | undefined;

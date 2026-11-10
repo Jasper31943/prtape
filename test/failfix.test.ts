@@ -155,7 +155,7 @@ describe("synthetic fail-then-fix session", () => {
     const comment = renderComment(summary);
     const svg = renderSvg(summary);
     const json = JSON.stringify(toPublicJson(presented.summary));
-    assert.equal(testsPhrase(presented.summary), "npm test · pass");
+    assert.equal(testsPhrase(presented.summary), "1 failed → 1/1 pass");
     assert.equal(presented.summary.decision, "Correct test expectation from 5 to 4; leave add() unchanged.");
     assert.deepEqual(
       presented.summary.steps
@@ -164,13 +164,14 @@ describe("synthetic fail-then-fix session", () => {
       ["read", "fail", "read", "read", "read", "edit", "read", "pass"],
     );
     assert.deepEqual(trackLabels(svg), ["fail", "read", "edit", "pass"]);
-    assert.match(comment, /npm test · pass/);
+    assert.match(comment, /1 failed → 1\/1 pass/);
     assert.match(comment, /· fail/);
     assert.match(comment, /· pass/);
     assert.doesNotMatch(svg, />fix</);
     assert.doesNotMatch(svg, />commit</);
     assert.match(svg, /math\.test\.js/);
-    assert.match(svg, /npm test · pass/);
+    assert.match(svg, /1 failed/);
+    assert.match(svg, /1\/1 pass/);
     assert.doesNotMatch(svg, /npm test · fail/);
     for (const rendered of [comment, svg, json]) {
       assert.equal(rendered.includes("[REDACTED"), false);

@@ -13,12 +13,13 @@ import {
 } from "./discover.js";
 import { presentSummary } from "./display.js";
 import { glanceRaster } from "./glance.js";
-import { GhError, postComment, type CommandRunner } from "./gh.js";
+import { GhError, postComment, pullRequestHead, type CommandRunner } from "./gh.js";
 import { hostTimelinePng, type HostResult } from "./orphan.js";
 import { renderPng } from "./png.js";
 import type { RedactOptions } from "./redact.js";
 import { sessionIsEmpty } from "./summary.js";
 import { renderComment, terminalSummary } from "./timeline/md.js";
+import { publicSteps } from "./timeline/format.js";
 import { renderSvg } from "./timeline/svg.js";
 import type { SessionSummary, SourceKind } from "./types.js";
 import { VERSION } from "./version.js";
@@ -34,6 +35,8 @@ export interface RunOptions {
   redactEmails: boolean;
   /** Comment on this pull request instead of the one for the current branch. */
   prNumber?: number;
+  /** Show the Demo project tag. Off unless `--demo` or `--label demo` is set. */
+  demo?: boolean;
   tmpDir?: string;
   runner?: CommandRunner;
   recentFiles?: string[];
@@ -73,7 +76,7 @@ export function toPublicJson(
     testsRun: summary.testsRun,
     tests: summary.tests,
     files: summary.files,
-    steps: summary.steps,
+    steps: publicSteps(summary.steps),
     imageHosted: image.imageHosted,
     imageUrl: image.imageUrl ?? null,
   };
@@ -88,6 +91,10 @@ export async function runPr(options: RunOptions): Promise<RunResult> {
     const branch = gitBranch(cwd);
     if (branch) summary.branch = branch;
   }
+  if (!options.dryRun) {
+    const head = await pullRequestHead(cwd, options.runner, options.prNumber);
+    if (head) summary.branch = head;
+  }
   if (sessionIsEmpty(summary)) {
     throw new NoSessionError(`Nothing to timeline in ${found.path}. No prompt, edit, test, or summary was recognized.`);
   }
@@ -95,7 +102,7 @@ export async function runPr(options: RunOptions): Promise<RunResult> {
   const redactOptions: RedactOptions = { emails: options.redactEmails };
   const view = presentSummary(summary, redactOptions);
   const shown = view.summary;
-  const svg = renderSvg(summary, redactOptions);
+  const svg = renderSvg(summary, redactOptions, options.demo === true);
   const tmpDir = options.tmpDir ?? os.tmpdir();
   const svgPath = writeTimelineFile(svg, cwd, summary.sessionId, tmpDir, "svg");
   const raster = rasterize(svg);
@@ -107,8 +114,8 @@ export async function runPr(options: RunOptions): Promise<RunResult> {
     return {
       summary: shown,
       comment: pngPath
-        ? renderComment(summary, redactOptions, { url: "timeline.png", isPrivate: false, dryRun: true })
-        : renderComment(summary, redactOptions),
+        ? renderComment(summary, redactOptions, { url: "timeline.png", isPrivate: false, dryRun: true }, options.demo === true)
+        : renderComment(summary, redactOptions, undefined, options.demo === true),
       svg,
       svgPath,
       pngPath,
@@ -126,8 +133,8 @@ export async function runPr(options: RunOptions): Promise<RunResult> {
 
   const hosted = await resolveHost(options, cwd, raster);
   const comment = hosted.ok
-    ? renderComment(summary, redactOptions, { url: hosted.url, isPrivate: hosted.isPrivate })
-    : renderComment(summary, redactOptions);
+    ? renderComment(summary, redactOptions, { url: hosted.url, isPrivate: hosted.isPrivate }, options.demo === true)
+    : renderComment(summary, redactOptions, undefined, options.demo === true);
   const base = {
     summary: shown,
     comment,

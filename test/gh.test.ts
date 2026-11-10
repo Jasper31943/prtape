@@ -42,6 +42,46 @@ function githubRunner(
 }
 
 describe("gh", () => {
+  it("uses the pull request head ref as the source branch", async () => {
+    const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "agenttape-head-"));
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "agenttape-head-svg-"));
+    const runner: CommandRunner = async (_command, args) => {
+      if (args[0] === "pr" && args[1] === "view") {
+        return result({
+          code: 0,
+          stdout: JSON.stringify({
+            number: 2,
+            url: "https://github.com/acme/demo/pull/2",
+            headRefName: "demo/pagination-fix",
+          }),
+        });
+      }
+      if (args[0] === "api" && args[1] === "user") return result({ code: 0, stdout: JSON.stringify({ login: "octocat" }) });
+      if (args[0] === "api" && args[1] === "--paginate") return result({ code: 0, stdout: "[]" });
+      if (args[0] === "api") return result({ code: 0, stdout: JSON.stringify({ id: 3 }) });
+      return result({ code: 0, stdout: "" });
+    };
+    const posted = await runPr({
+      cwd,
+      sessionPath: path.join(root, "fixtures", "claude-session.jsonl"),
+      source: "auto",
+      dryRun: false,
+      redactEmails: false,
+      prNumber: 2,
+      tmpDir,
+      runner,
+      hostImage: async () => ({
+        ok: true,
+        url: "https://github.com/acme/demo/raw/abc/timeline.png",
+        sha: "abc",
+        ref: "refs/agenttape/abc",
+        isPrivate: false,
+      }),
+    });
+    assert.match(posted.comment, /demo\/pagination-fix/);
+    assert.doesNotMatch(posted.comment, /feature\/redact-timeline/);
+  });
+
   it("explains a missing binary, a missing login, and a missing PR", () => {
     assert.match(explainGhFailure(result({ code: 127, stderr: "gh not found" })), /not installed/);
     assert.match(explainGhFailure(result({ stderr: "gh auth login required" })), /not authenticated/);
