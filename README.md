@@ -81,7 +81,7 @@ v0.1 drops a span only when it matches one of these fixed formats:
 | Private IPv4 | `10/8`, `172.16/12`, `192.168/16`, and link-local `169.254/16`. Loopback addresses stay. |
 | Hostnames | Names ending in `.internal` or `.local`. `localhost` stays. |
 
-It does not catch other password formats, database connection strings, or custom company domains. Review the comment before it is posted.
+It does not catch other password formats, database connection strings, or custom company domains. `pr` posts the comment directly, so run `npx prtape-cli pr --dry-run` first to review what will be posted.
 
 A matching span is removed from the pull-request comment, the timeline image, and the JSON a reviewer would read. The card does not print a replacement token. Email addresses stay unless you pass `--redact-emails`. The title drops an email even without that flag.
 
