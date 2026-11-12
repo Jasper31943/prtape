@@ -81,7 +81,7 @@ describe("cli", () => {
   it("prints the version", () => {
     const result = run(["--version"], root);
     assert.equal(result.status, 0);
-    assert.equal(result.stdout.trim(), "0.1.1");
+    assert.equal(result.stdout.trim(), "0.1.2");
   });
 
   it("exits 1 when the session file is missing", () => {

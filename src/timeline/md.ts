@@ -115,12 +115,16 @@ function dryRunNote(): string {
 }
 
 function visibilityNote(isPrivate: boolean): string {
-  const which = isPrivate ? "This repo is private." : "This repo is public.";
+  if (isPrivate) {
+    return [
+      "This repo is private.",
+      "On a private repo, logged-out users, email notifications, and some mobile clients may show a broken image.",
+      "Collaborators who can open the repo usually see it.",
+    ].join(" ");
+  }
   return [
-    which,
+    "This repo is public.",
     "On a public repo, anonymous viewers see the PNG at `github.com/.../raw/<sha>/...`.",
-    "On a private repo, logged-out users, email notifications, and some mobile clients may show a broken image.",
-    "Collaborators who can open the repo usually see it.",
   ].join(" ");
 }
 

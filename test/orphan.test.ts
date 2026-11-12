@@ -112,9 +112,14 @@ describe("orphan PNG ref", () => {
     const comment = renderComment(summary, {}, { url, isPrivate: false });
     assert.match(comment, /^!\[PRtape timeline\]\(https:\/\/github\.com\/acme\/demo\/raw\/abc123def\/timeline\.png\)/);
     assert.match(comment, /<!-- prtape -->/);
-    assert.match(comment, /public repo/i);
-    assert.match(comment, /private repo/i);
-    assert.match(comment, /logged-out users, email notifications, and some mobile clients/);
+    assert.match(comment, /This repo is public/);
+    assert.match(comment, /anonymous viewers see the PNG/);
+    assert.doesNotMatch(comment, /private/i);
+    assert.doesNotMatch(comment, /broken image/i);
+    const privateComment = renderComment(summary, {}, { url, isPrivate: true });
+    assert.match(privateComment, /This repo is private/);
+    assert.match(privateComment, /logged-out users, email notifications, and some mobile clients may show a broken image/);
+    assert.match(privateComment, /Collaborators who can open the repo usually see it/);
     assert.match(comment, /\*\*Ship the redacted timeline/);
     assert.doesNotMatch(comment, /```mermaid/);
     assert.doesNotMatch(comment, /ask ──▶/);

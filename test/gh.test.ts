@@ -159,7 +159,9 @@ describe("gh", () => {
     assert.doesNotMatch(createdBody.body ?? "", /```mermaid/);
     assert.doesNotMatch(createdBody.body ?? "", /ask ──▶/);
     assert.match(createdBody.body ?? "", /\*\*Ship the redacted timeline/);
-    assert.match(createdBody.body ?? "", /private repo/i);
+    assert.match(createdBody.body ?? "", /This repo is public/);
+    assert.doesNotMatch(createdBody.body ?? "", /private/i);
+    assert.doesNotMatch(createdBody.body ?? "", /broken image/i);
     assert.match(posted.note, /hosted PNG/);
     for (const canary of SECRET_CANARIES) {
       assert.equal(createdBody.body?.includes(canary), false, canary);
