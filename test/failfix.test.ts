@@ -18,7 +18,7 @@ import { fixture, trackLabels } from "./helpers.js";
 
 const TAP_FAIL = "not ok 1 - add\n  message: 4 !== 5\n# tests 1\n# pass 0\n# fail 1\n# skipped 0\n";
 const TAP_PASS = "ok 1 - add\n# tests 1\n# pass 1\n# fail 0\n# skipped 0\n";
-const TEE = "/private/tmp/claude-501/-Users-patdoe-agenttape-failfix/sess/scratchpad/npm-test-before.log";
+const TEE = "/private/tmp/claude-501/-Users-patdoe-prtape-failfix/sess/scratchpad/npm-test-before.log";
 
 const PRIVATE_MARKERS = [
   "/Users/patdoe",
@@ -60,7 +60,7 @@ describe("conservative Bash edits", () => {
   });
 
   it("keeps edit and test order inside one command and does not invent a commit", () => {
-    const tee = "/private/tmp/claude-501/-Users-patdoe-agenttape-failfix/sess/scratchpad/npm-test-before.log";
+    const tee = "/private/tmp/claude-501/-Users-patdoe-prtape-failfix/sess/scratchpad/npm-test-before.log";
     assert.deepEqual(
       bashEvents(`ls -la && cat package.json && npm test 2>&1 | tee ${tee}`).map((event) => event.kind),
       ["read", "test"],
@@ -111,7 +111,7 @@ describe("private path deletion", () => {
     assert.equal(stripPrivatePaths("checkout /Users/patdoe/proj/math.js"), "checkout /proj/math.js");
     assert.equal(stripPrivatePaths("checkout /home/patdoe/proj/math.js"), "checkout /proj/math.js");
     assert.equal(stripPrivatePaths(`log ${TEE}`), "log");
-    assert.equal(stripPrivatePaths("slug -Users-patdoe-agenttape-failfix tail"), "slug agenttape-failfix tail");
+    assert.equal(stripPrivatePaths("slug -Users-patdoe-prtape-failfix tail"), "slug prtape-failfix tail");
     const presented = presentSummary(
       withSteps({
         source: "claude-code",

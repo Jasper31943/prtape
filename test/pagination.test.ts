@@ -154,7 +154,7 @@ describe("pasted title wrappers", () => {
       "Fix the page slice so the last item is included.",
     );
     assert.equal(
-      scrubTitle("This is an intentional AgentTape demo, not a real customer incident. Fix the page slice so the last item is included."),
+      scrubTitle("This is an intentional PRtape demo, not a real customer incident. Fix the page slice so the last item is included."),
       "Fix the page slice so the last item is included.",
     );
     assert.equal(scrubTitle("Be concise. Answer in English."), "Be concise.");

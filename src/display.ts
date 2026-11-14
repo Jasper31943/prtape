@@ -51,7 +51,7 @@ const FENCE_LANG = /^(?:text|bash|sh|shell|md|markdown|json|javascript|js|ts|typ
 
 export function scrubTitle(text: string, options: RedactOptions = {}): string {
   // Emails never lead the title. A sentence that is only an address is dropped.
-  const clean = scrubProse(stripFenceLang(stripPastedWrappers(text)), { ...options, emails: true });
+  const clean = scrubProse(stripFenceLang(stripPastedWrappers(text)), options);
   const sentences = splitSentences(clean)
     .map((sentence) => stripFenceLang(sentence))
     .filter((sentence) => sentence && !isOnlyEmail(sentence));

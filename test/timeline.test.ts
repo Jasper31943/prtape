@@ -54,7 +54,7 @@ describe("timeline snapshots", () => {
     assert.match(svg, />pass</);
     assert.doesNotMatch(svg, />commit</);
     assert.deepEqual(trackLabels(svg), ["edit", "pass"]);
-    assert.match(svg, /redacted ×16/);
+    assert.match(svg, /redacted ×17/);
     assert.doesNotMatch(svg, /masked ×/);
     assert.match(svg, /FILES TOUCHED/);
     assert.match(svg, /TESTS RAN/);

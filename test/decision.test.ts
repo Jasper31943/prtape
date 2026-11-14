@@ -16,7 +16,7 @@ describe("path-reference sentences", () => {
     const shown = scrubProse(
       [
         "修好了，第二次執行 npm test 全部通過（1 個測試通過，0 個失敗，0 個跳過）。",
-        "完整輸出存在 `/private/tmp/claude-501/-Users-patdoe-agenttape-failfix/sess/scratchpad/npm-test-before.log`。",
+        "完整輸出存在 `/private/tmp/claude-501/-Users-patdoe-prtape-failfix/sess/scratchpad/npm-test-before.log`。",
         "錯的是測試：math.test.js 寫的是 add(2, 2) 應該等於 5。我只把預期值改成 4。",
         "修正後的輸出存在 ``。",
       ].join(""),

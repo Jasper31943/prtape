@@ -81,7 +81,9 @@ export function explainGhFailure(result: CommandResult): string {
 /**
  * PNG comments and the mermaid fallback both match. Other review chatter does not.
  * `<!-- prtape -->` is the marker id. Visible headings say PRtape.
- * Older AgentTape comments still match so a rerun updates them.
+ *
+ * The AgentTape strings below exist only for backward compatibility with this
+ * project's earlier name. A rerun still updates that older comment.
  */
 export function isPrtapeComment(body: string): boolean {
   return (

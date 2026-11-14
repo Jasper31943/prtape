@@ -2,8 +2,10 @@ import type { SessionDraft, SessionSummary, TimelineEvent } from "./types.js";
 import { withSteps } from "./summary.js";
 
 export interface RedactOptions {
-  /** Emails stay visible unless this is set. */
+  /** Emails are removed unless this is false. */
   emails?: boolean;
+  /** Extra domains, plus their subdomains, to remove. No built-in company list. */
+  domains?: string[];
 }
 
 /**
@@ -16,6 +18,8 @@ export const REDACTED_AWS_KEY = "[REDACTED_AWS_KEY]";
 export const REDACTED_IP = "[REDACTED_IP]";
 export const REDACTED_HOST = "[REDACTED_HOST]";
 export const REDACTED_EMAIL = "[REDACTED_EMAIL]";
+export const REDACTED_DATABASE_URL = "[REDACTED_DATABASE_URL]";
+export const REDACTED_PASSWORD = "[REDACTED_PASSWORD]";
 
 interface Rule {
   pattern: RegExp;
@@ -26,8 +30,8 @@ interface Rule {
  * Default redaction. Order matters: `sk-ant-` before generic `sk-`.
  *
  * Patterns are intentionally prefix-based, not entropy-based. A novel secret
- * that does not match these shapes is not caught. Emails are off unless
- * `options.emails` is set.
+ * that does not match these shapes is not caught. Emails are removed unless
+ * `options.emails` is false.
  */
 const SECRET_RULES: Rule[] = [
   {
@@ -71,12 +75,31 @@ const EMAIL_RULE: Rule = {
 };
 
 export function redact(value: string, options: RedactOptions = {}): string {
-  let out = value;
+  const databaseUrl =
+    /\b(?:postgres|postgresql|mysql|mongodb(?:\+srv)?|redis|rediss|amqp):\/\/[^\s/:@]+:[^\s/@]+@[^\s'"]+/gi;
+  const passwordAssignment = /\b(password|passwd|pwd)\b(\s*[=:]\s*)(["']?)([^\s"'#;]+)\3/gi;
+  let out = value.replace(databaseUrl, REDACTED_DATABASE_URL);
+  out = out.replace(passwordAssignment, `$1$2${REDACTED_PASSWORD}`);
   for (const rule of SECRET_RULES) {
     out = out.replace(rule.pattern, rule.replace);
   }
-  if (options.emails) {
+  if (options.emails !== false) {
     out = out.replace(EMAIL_RULE.pattern, EMAIL_RULE.replace);
+  }
+  return redactDomains(out, options.domains ?? []);
+}
+
+function redactDomains(value: string, domains: string[]): string {
+  let out = value;
+  for (const domain of domains) {
+    const trimmed = domain.trim().replace(/^\.+|\.+$/g, "");
+    if (!/^[A-Za-z0-9.-]+$/.test(trimmed) || !trimmed.includes(".")) continue;
+    const escaped = trimmed.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const pattern = new RegExp(
+      `(?<![A-Za-z0-9-])(?:[A-Za-z0-9-]+\\.)*${escaped}(?::\\d+)?(?![A-Za-z0-9.-])`,
+      "gi",
+    );
+    out = out.replace(pattern, REDACTED_HOST);
   }
   return out;
 }

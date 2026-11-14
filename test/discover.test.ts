@@ -13,7 +13,7 @@ import {
 } from "../src/discover.js";
 
 function tempDir(): string {
-  return fs.mkdtempSync(path.join(os.tmpdir(), "agenttape-discover-"));
+  return fs.mkdtempSync(path.join(os.tmpdir(), "prtape-discover-"));
 }
 
 function writeSession(home: string, slug: string, name: string, cwd: string, touched: string): string {

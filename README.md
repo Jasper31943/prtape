@@ -52,7 +52,7 @@ On the happy path the comment leads with the image, then the decision and a shor
 git push origin +<commit>:refs/prtape/<head>
 ```
 
-`<head>` is the SHA already on your branch. The new commit has no parent, and the destination is `refs/prtape/…`, not `refs/heads/…`, so it cannot merge into main and it is not your PR branch. The push does not update your index or working tree, and it does not create `.prtape/`. The tree contains `timeline.png` and nothing else. Running `prtape pr` again updates the latest PRtape comment on that pull request. A comment left by the previous AgentTape marker is updated in place instead of posting a second one.
+`<head>` is the SHA already on your branch. The new commit has no parent, and the destination is `refs/prtape/…`, not `refs/heads/…`, so it cannot merge into main and it is not your PR branch. The push does not update your index or working tree, and it does not create `.prtape/`. The tree contains `timeline.png` and nothing else. Running `prtape pr` again updates the latest PRtape comment on that pull request. A comment posted under this project's earlier name, AgentTape, is updated in place instead of posting a second one.
 
 The comment image is exactly:
 
@@ -82,10 +82,14 @@ v0.1 drops a span only when it matches one of these fixed formats:
 | AWS keys | Access key ids `AKIA`, `ASIA`, `AIDA`, or `AROA` plus 16 characters, and values after `AWS_SECRET_ACCESS_KEY=`. |
 | Private IPv4 | `10/8`, `172.16/12`, `192.168/16`, and link-local `169.254/16`. Loopback addresses stay. |
 | Hostnames | Names ending in `.internal` or `.local`. `localhost` stays. |
+| Email addresses | On by default in the comment, the timeline image, and JSON. `--no-redact-emails` leaves them visible. `--redact-emails` is accepted and still turns them on. |
+| Database URLs | `postgres`, `postgresql`, `mysql`, `mongodb`, `mongodb+srv`, `redis`, `rediss`, and `amqp` URLs that contain `user:password@host`. A URL with no password is left as-is. |
+| Password assignments | `password=`, `PASSWORD:`, `passwd=`, and `pwd=` values. The word password in a sentence, with no value, stays. |
+| Extra domains | `--redact-domain <domain>`, or comma-separated `PRTAPE_REDACT_DOMAINS`, also removes that domain, its subdomains, and an optional port. No company domain is built in. |
 
-It does not catch other password formats, database connection strings, or custom company domains. `pr` posts the comment directly, so run `npx prtape-cli pr --dry-run` first to review what will be posted.
+`pr` posts the comment directly, so run `npx prtape-cli pr --dry-run` first to review what will be posted.
 
-A matching span is removed from the pull-request comment, the timeline image, and the JSON a reviewer would read. The card does not print a replacement token. Email addresses stay unless you pass `--redact-emails`. The title drops an email even without that flag.
+A matching span is removed from the pull-request comment, the timeline image, and the JSON a reviewer would read. The card does not print a replacement token.
 
 ## Sessions
 

@@ -1,6 +1,6 @@
 /**
- * Current names are PRTAPE_*. AGENTTAPE_* still works.
- * When the new name is set, even to an empty string, it wins.
+ * Current names are PRTAPE_*. Every AGENTTAPE_* name is still read as a fallback
+ * for the same suffix. When the new name is set, even to an empty string, it wins.
  */
 export function envValue(suffix: string, env: NodeJS.ProcessEnv = process.env): string | undefined {
   const current = `PRTAPE_${suffix}`;

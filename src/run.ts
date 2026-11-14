@@ -31,7 +31,10 @@ export interface RunOptions {
   source: SourceChoice;
   claudeHome?: string;
   dryRun: boolean;
-  redactEmails: boolean;
+  /** Defaults to on. `--no-redact-emails` passes false. */
+  redactEmails?: boolean;
+  /** Extra domains from `--redact-domain` and PRTAPE_REDACT_DOMAINS. */
+  redactDomains?: string[];
   /** Comment on this pull request instead of the one for the current branch. */
   prNumber?: number;
   /** Show the Demo project tag. Off unless `--demo` or `--label demo` is set. */
@@ -104,7 +107,10 @@ export async function runPr(options: RunOptions): Promise<RunResult> {
     throw new NoSessionError(`Nothing to timeline in ${found.path}. No prompt, edit, test, or summary was recognized.`);
   }
 
-  const redactOptions: RedactOptions = { emails: options.redactEmails };
+  const redactOptions: RedactOptions = {
+    emails: options.redactEmails !== false,
+    domains: options.redactDomains,
+  };
   const view = presentSummary(summary, redactOptions);
   const shown = view.summary;
   const svg = renderSvg(summary, redactOptions, options.demo === true);

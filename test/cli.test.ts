@@ -26,7 +26,7 @@ function run(args: string[], cwd: string): { status: number | null; stdout: stri
 
 describe("cli", () => {
   it("prints a redacted dry-run comment and writes the SVG outside the project", () => {
-    const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "agenttape-cli-"));
+    const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "prtape-cli-"));
     const session = path.join(root, "fixtures", "claude-session.jsonl");
     const result = run(["pr", "--dry-run", "--session", session, "--cwd", cwd], cwd);
     assert.equal(result.status, 0, result.stderr);
@@ -81,11 +81,11 @@ describe("cli", () => {
   it("prints the version", () => {
     const result = run(["--version"], root);
     assert.equal(result.status, 0);
-    assert.equal(result.stdout.trim(), "0.1.2");
+    assert.equal(result.stdout.trim(), "0.1.3");
   });
 
   it("exits 1 when the session file is missing", () => {
-    const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "agenttape-missing-"));
+    const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "prtape-missing-"));
     const result = run(["pr", "--session", path.join(cwd, "no-such.jsonl"), "--cwd", cwd], cwd);
     assert.equal(result.status, 1);
     assert.match(result.stderr, /not found/);

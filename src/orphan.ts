@@ -129,6 +129,7 @@ export function pushOrphanPng(input: {
   tmpRoot?: string;
   useGhCredential?: boolean;
 }): (HostedPng) | HostFailure {
+  // PRTAPE_DENY_PUSH=1 skips the push. AGENTTAPE_DENY_PUSH is the old name and still works.
   if (envValue("DENY_PUSH") === "1") {
     return { ok: false, glance: glancePushDenied() };
   }

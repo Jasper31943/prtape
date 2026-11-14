@@ -35,7 +35,7 @@ describe("orphan PNG ref", () => {
     const previous = process.env.AGENTTAPE_DENY_PUSH;
     process.env.AGENTTAPE_DENY_PUSH = "1";
     try {
-      const result = pushOrphanPng({ remote: "/tmp/agenttape-should-not-push", png: Buffer.from("png") });
+      const result = pushOrphanPng({ remote: "/tmp/prtape-should-not-push", png: Buffer.from("png") });
       assert.equal(result.ok, false);
       if (!result.ok) {
         assert.match(result.glance, /was denied/);
@@ -58,13 +58,13 @@ describe("orphan PNG ref", () => {
     assert.equal(orphanRef("abc123def"), "refs/prtape/abc123def");
   });
 
-  it("pushes a parentless commit to refs/agenttape/<head> and leaves the project untouched", () => {
-    const project = fs.mkdtempSync(path.join(os.tmpdir(), "agenttape-proj-"));
-    const bare = fs.mkdtempSync(path.join(os.tmpdir(), "agenttape-bare-"));
+  it("pushes a parentless commit to refs/prtape/<head> and leaves the project untouched", () => {
+    const project = fs.mkdtempSync(path.join(os.tmpdir(), "prtape-proj-"));
+    const bare = fs.mkdtempSync(path.join(os.tmpdir(), "prtape-bare-"));
     git(bare, ["init", "--bare"]);
     git(project, ["init", "-b", "main"]);
-    git(project, ["config", "user.email", "agenttape@localhost"]);
-    git(project, ["config", "user.name", "AgentTape"]);
+    git(project, ["config", "user.email", "prtape@example.com"]);
+    git(project, ["config", "user.name", "PRtape"]);
     fs.writeFileSync(path.join(project, "README.md"), "project\n");
     git(project, ["add", "README.md"]);
     git(project, ["commit", "-m", "init"]);

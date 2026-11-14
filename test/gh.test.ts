@@ -43,8 +43,8 @@ function githubRunner(
 
 describe("gh", () => {
   it("uses the pull request head ref as the source branch", async () => {
-    const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "agenttape-head-"));
-    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "agenttape-head-svg-"));
+    const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "prtape-head-"));
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "prtape-head-svg-"));
     const runner: CommandRunner = async (_command, args) => {
       if (args[0] === "pr" && args[1] === "view") {
         return result({
@@ -74,7 +74,7 @@ describe("gh", () => {
         ok: true,
         url: "https://github.com/acme/demo/raw/abc/timeline.png",
         sha: "abc",
-        ref: "refs/agenttape/abc",
+        ref: "refs/prtape/abc",
         isPrivate: false,
       }),
     });
@@ -101,10 +101,10 @@ describe("gh", () => {
       return result({ code: 0, stdout: "" });
     };
 
-    const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "agenttape-pr-"));
+    const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "prtape-pr-"));
     const before = fs.readdirSync(cwd);
     const session = path.join(root, "fixtures", "claude-session.jsonl");
-    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "agenttape-svg-"));
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "prtape-svg-"));
 
     const dry = await runPr({
       cwd,
@@ -141,7 +141,7 @@ describe("gh", () => {
         ok: true,
         url: imageUrl,
         sha: "abc123def",
-        ref: "refs/agenttape/abc123def",
+        ref: "refs/prtape/abc123def",
         isPrivate: false,
       }),
     });
@@ -194,8 +194,8 @@ describe("gh", () => {
         created_at: "2026-01-04T00:00:00Z",
       },
     ];
-    const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "agenttape-upsert-"));
-    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "agenttape-svg-"));
+    const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "prtape-upsert-"));
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "prtape-svg-"));
     const session = path.join(root, "fixtures", "claude-session.jsonl");
     const imageUrl = "https://github.com/acme/demo/raw/abc123def/timeline.png";
     const posted = await runPr({
@@ -211,7 +211,7 @@ describe("gh", () => {
         ok: true,
         url: imageUrl,
         sha: "abc123def",
-        ref: "refs/agenttape/abc123def",
+        ref: "refs/prtape/abc123def",
         isPrivate: false,
       }),
     });
@@ -238,7 +238,7 @@ describe("gh", () => {
       runner: githubRunner(calls, comments),
       hostImage: async () => ({
         ok: false,
-        glance: "Image not posted: push to orphan ref refs/agenttape/<sha> was denied.\nFell back to the text timeline (ASCII + mermaid).",
+        glance: "Image not posted: push to orphan ref refs/prtape/<sha> was denied.\nFell back to the text timeline (ASCII + mermaid).",
       }),
     });
     const denyPatches = calls.filter((call) => call.args[1] === "--method" && call.args[2] === "PATCH");
@@ -305,8 +305,8 @@ describe("gh", () => {
     assert.ok(thrown instanceof Error);
     assert.match(thrown.message, /No pull request/);
 
-    const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "agenttape-nopr-"));
-    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "agenttape-svg-"));
+    const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "prtape-nopr-"));
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "prtape-svg-"));
     const kept = await runPr({
       cwd,
       sessionPath: path.join(root, "fixtures", "claude-session.jsonl"),
@@ -318,8 +318,8 @@ describe("gh", () => {
       hostImage: async () => ({
         ok: false,
         glance: [
-          "Image not posted: push to orphan ref refs/agenttape/<sha> was denied.",
-          "Fix: give this account write access to the repo, then rerun `agenttape pr`.",
+          "Image not posted: push to orphan ref refs/prtape/<sha> was denied.",
+          "Fix: give this account write access to the repo, then rerun `prtape pr`.",
           "Fell back to the text timeline (ASCII + mermaid).",
         ].join("\n"),
       }),
@@ -341,8 +341,8 @@ describe("gh", () => {
       if (args[0] === "pr" && args[1] === "comment") comments += 1;
       return result({ code: 127, stderr: "gh not found" });
     };
-    const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "agenttape-nogh-"));
-    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "agenttape-svg-"));
+    const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "prtape-nogh-"));
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "prtape-svg-"));
     const out = await runPr({
       cwd,
       sessionPath: path.join(root, "fixtures", "claude-session.jsonl"),

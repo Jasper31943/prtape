@@ -1,16 +1,16 @@
 {
   "name": "prtape-cli",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "One image on the PR showing what your AI agent did.",
   "license": "MIT",
   "author": "Jasper31943",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Jasper31943/prtape.git"
+    "url": "git+https://github.com/Jasper31943/PRtape.git"
   },
-  "homepage": "https://github.com/Jasper31943/prtape",
+  "homepage": "https://github.com/Jasper31943/PRtape",
   "bugs": {
-    "url": "https://github.com/Jasper31943/prtape/issues"
+    "url": "https://github.com/Jasper31943/PRtape/issues"
   },
   "type": "module",
   "bin": {

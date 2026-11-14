@@ -25,7 +25,7 @@
   <rect x="687.8" y="34" width="114.19999999999999" height="28" rx="14" fill="#1B2430" stroke="#263241"/>
   <text x="744.9" y="53" fill="#E6EDF3" font-family="JetBrains Mono, 'SF Mono', Menlo, Consolas, 'DejaVu Sans Mono', monospace" font-size="13" text-anchor="middle">Claude Code</text>
   <rect x="810" y="34" width="118" height="28" rx="14" fill="#0F2A1D" stroke="#39FF88"/>
-  <text x="869.0" y="53" fill="#39FF88" font-family="JetBrains Mono, 'SF Mono', Menlo, Consolas, 'DejaVu Sans Mono', monospace" font-size="13" font-weight="700" text-anchor="middle">redacted ×16</text>
+  <text x="869.0" y="53" fill="#39FF88" font-family="JetBrains Mono, 'SF Mono', Menlo, Consolas, 'DejaVu Sans Mono', monospace" font-size="13" font-weight="700" text-anchor="middle">redacted ×17</text>
   <rect x="36" y="78" width="888" height="22" rx="6" fill="#1B2430"/>
   <rect x="36.0" y="78" width="441.0" height="22" rx="4" fill="#22D3EE"/>
   <text x="256.5" y="118" fill="#22D3EE" font-family="JetBrains Mono, 'SF Mono', Menlo, Consolas, 'DejaVu Sans Mono', monospace" font-size="13" text-anchor="middle">edit</text>

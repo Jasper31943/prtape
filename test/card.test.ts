@@ -26,7 +26,7 @@ const CJK_DECISION = [
   "**原因與修正：**",
   "- `math.js` 裡的 `add(a, b)` 回傳 `a + b`，就是一般加法，所以完全沒動。",
   "- 錯的是測試：`math.test.js:6` 寫的是 `add(2, 2)` 應該等於 `5`。我只把預期值改成 `4`，測試沒刪也沒跳過。",
-  "修正後的輸出存在 `/private/tmp/claude-501/-Users-patdoe-agenttape-failfix/sess/scratchpad/npm-test-after.log`。",
+  "修正後的輸出存在 `/private/tmp/claude-501/-Users-patdoe-prtape-failfix/sess/scratchpad/npm-test-after.log`。",
 ].join("\n");
 
 describe("decision text", () => {
@@ -66,7 +66,7 @@ describe("decision text", () => {
       sessionId: "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee",
       title: "Fix the addition assertion.",
       decision: `${CJK_DECISION}\n${"a".repeat(240)}`,
-      cwd: "/Users/patdoe/agenttape-failfix",
+      cwd: "/Users/patdoe/prtape-failfix",
       files: [],
       tests: [],
       events: [

@@ -17,6 +17,7 @@ interface Args {
   dryRun: boolean;
   json: boolean;
   redactEmails: boolean;
+  redactDomains: string[];
   prNumber?: number;
   demo: boolean;
 }
@@ -41,7 +42,10 @@ Options:
   --claude-home <dir>      Claude config directory (default: ~/.claude or $CLAUDE_CONFIG_DIR)
   --dry-run                Print the comment and do not call gh
   --json                   Print the redacted summary as JSON on stdout
-  --redact-emails          Also redact email addresses
+  --redact-emails          Redact email addresses (default; kept for compatibility)
+  --no-redact-emails       Leave email addresses visible
+  --redact-domain <domain> Also redact this domain and its subdomains (repeatable)
+                           PRTAPE_REDACT_DOMAINS is a comma-separated list
   --demo                   Tag the timeline as a Demo project
   --label demo             Same as --demo
   -h, --help               Show this help
@@ -92,6 +96,7 @@ async function main(argv: string[]): Promise<number> {
       claudeHome: args.claudeHome,
       dryRun: args.dryRun,
       redactEmails: args.redactEmails,
+      redactDomains: domainsFrom(args.redactDomains),
       prNumber: args.prNumber,
       demo: args.demo,
     });
@@ -149,7 +154,8 @@ function parseArgs(argv: string[]): Args {
     source: "auto",
     dryRun: false,
     json: false,
-    redactEmails: false,
+    redactEmails: true,
+    redactDomains: [],
     demo: false,
   };
   const rest = argv.slice(2);
@@ -182,6 +188,12 @@ function parseArgs(argv: string[]): Args {
         break;
       case "--redact-emails":
         args.redactEmails = true;
+        break;
+      case "--no-redact-emails":
+        args.redactEmails = false;
+        break;
+      case "--redact-domain":
+        args.redactDomains.push(take());
         break;
       case "--demo":
         args.demo = true;
@@ -225,6 +237,14 @@ function parseArgs(argv: string[]): Args {
   args.command = positional[0];
   if (args.cwd) args.cwd = path.resolve(args.cwd);
   return args;
+}
+
+function domainsFrom(flags: string[]): string[] {
+  const fromEnv = (envValue("REDACT_DOMAINS") ?? "")
+    .split(",")
+    .map((domain) => domain.trim())
+    .filter(Boolean);
+  return [...flags, ...fromEnv];
 }
 
 main(process.argv).then(
