@@ -101,9 +101,36 @@ describe("redact", () => {
     assert.equal(redact("password=s3cret", { emails: false }), `password=${REDACTED_PASSWORD}`);
     assert.equal(redact("PASSWORD: s3cret", { emails: false }), `PASSWORD: ${REDACTED_PASSWORD}`);
     assert.equal(redact("passwd=s3cret", { emails: false }), `passwd=${REDACTED_PASSWORD}`);
-    assert.equal(redact('pwd="s3cret"', { emails: false }), `pwd=${REDACTED_PASSWORD}`);
+    assert.equal(redact('pwd="s3cret"', { emails: false }), `pwd="${REDACTED_PASSWORD}"`);
     assert.equal(redact("Choose a password before you deploy.", { emails: false }), "Choose a password before you deploy.");
     assert.equal(redact("password=s3cret", { emails: false }).includes("s3cret"), false);
+  });
+
+  it("redacts prefixed, JSON, YAML, and compose password values only", () => {
+    const cases: Array<[string, string]> = [
+      ["DB_PASSWORD=hunter2secret", `DB_PASSWORD=${REDACTED_PASSWORD}`],
+      ["POSTGRES_PASSWORD=hunter2secret", `POSTGRES_PASSWORD=${REDACTED_PASSWORD}`],
+      ['MYSQL_ROOT_PASSWORD="hunter2secret"', `MYSQL_ROOT_PASSWORD="${REDACTED_PASSWORD}"`],
+      ["PGPASSWORD=hunter2secret", `PGPASSWORD=${REDACTED_PASSWORD}`],
+      ['{"password": "hunter2secret"}', `{"password": "${REDACTED_PASSWORD}"}`],
+      ["password: hunter2secret", `password: ${REDACTED_PASSWORD}`],
+      ["- POSTGRES_PASSWORD=hunter2secret", `- POSTGRES_PASSWORD=${REDACTED_PASSWORD}`],
+    ];
+    for (const [input, expected] of cases) {
+      const output = redact(input, { emails: false });
+      assert.equal(output, expected, input);
+      assert.equal(output.includes("hunter2secret"), false, input);
+    }
+    const untouched = [
+      "Enter your password",
+      "Choose a password before you deploy.",
+      "password reset link",
+      "passwordless",
+      "PASSWORD_MIN_LENGTH=8",
+    ];
+    for (const input of untouched) {
+      assert.equal(redact(input, { emails: false }), input, input);
+    }
   });
 
   it("redacts a configured domain and its subdomains only", () => {

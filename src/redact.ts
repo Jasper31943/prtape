@@ -77,9 +77,13 @@ const EMAIL_RULE: Rule = {
 export function redact(value: string, options: RedactOptions = {}): string {
   const databaseUrl =
     /\b(?:postgres|postgresql|mysql|mongodb(?:\+srv)?|redis|rediss|amqp):\/\/[^\s/:@]+:[^\s/@]+@[^\s'"]+/gi;
-  const passwordAssignment = /\b(password|passwd|pwd)\b(\s*[=:]\s*)(["']?)([^\s"'#;]+)\3/gi;
+  // A key may have a prefix (DB_, PG, MYSQL_ROOT_). It must end in
+  // password, passwd, or pwd, so PASSWORD_MIN_LENGTH is left alone.
+  // An optional quote after the key covers JSON ("password": "...").
+  const passwordAssignment =
+    /(?<![A-Za-z0-9_])([A-Za-z0-9_]*(?:password|passwd|pwd))(?![A-Za-z0-9_])("?)(\s*[=:]\s*)(["']?)([^\s"'#;]+)/gi;
   let out = value.replace(databaseUrl, REDACTED_DATABASE_URL);
-  out = out.replace(passwordAssignment, `$1$2${REDACTED_PASSWORD}`);
+  out = out.replace(passwordAssignment, `$1$2$3$4${REDACTED_PASSWORD}`);
   for (const rule of SECRET_RULES) {
     out = out.replace(rule.pattern, rule.replace);
   }
