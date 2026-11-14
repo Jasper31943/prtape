@@ -77,13 +77,8 @@ const EMAIL_RULE: Rule = {
 export function redact(value: string, options: RedactOptions = {}): string {
   const databaseUrl =
     /\b(?:postgres|postgresql|mysql|mongodb(?:\+srv)?|redis|rediss|amqp):\/\/[^\s/:@]+:[^\s/@]+@[^\s'"]+/gi;
-  // A key may have a prefix (DB_, PG, MYSQL_ROOT_). It must end in
-  // password, passwd, or pwd, so PASSWORD_MIN_LENGTH is left alone.
-  // An optional quote after the key covers JSON ("password": "...").
-  const passwordAssignment =
-    /(?<![A-Za-z0-9_])([A-Za-z0-9_]*(?:password|passwd|pwd))(?![A-Za-z0-9_])("?)(\s*[=:]\s*)(["']?)([^\s"'#;]+)/gi;
   let out = value.replace(databaseUrl, REDACTED_DATABASE_URL);
-  out = out.replace(passwordAssignment, `$1$2$3$4${REDACTED_PASSWORD}`);
+  out = redactPasswordAssignments(out);
   for (const rule of SECRET_RULES) {
     out = out.replace(rule.pattern, rule.replace);
   }
@@ -91,6 +86,80 @@ export function redact(value: string, options: RedactOptions = {}): string {
     out = out.replace(EMAIL_RULE.pattern, EMAIL_RULE.replace);
   }
   return redactDomains(out, options.domains ?? []);
+}
+
+/**
+ * Keys end in password, passwd, or pwd, so PASSWORD_MIN_LENGTH stays.
+ * A prefix may be DB_, PG, MYSQL_ROOT_, or a flag (`--password`, `--db-password`).
+ * An optional quote after the key covers JSON and Python (`"password":`, `'db_password':`).
+ * Quoted values run through the matching closer, including escapes, spaces, and symbols.
+ * Unquoted values run to whitespace; a trailing `,` `}` `]` or `;` stays put.
+ */
+function redactPasswordAssignments(input: string): string {
+  const keyRe =
+    /(?<![A-Za-z0-9_])(-{0,2}[A-Za-z0-9_-]*?(?:password|passwd|pwd))(?![A-Za-z0-9_-])(['"]?)/gi;
+  let out = "";
+  let cursor = 0;
+  let match: RegExpExecArray | null;
+  while ((match = keyRe.exec(input)) !== null) {
+    const key = match[1] ?? "";
+    const span = readPasswordValue(input, match.index + match[0].length, key.startsWith("-"));
+    if (!span) {
+      keyRe.lastIndex = match.index + 1;
+      continue;
+    }
+    out += input.slice(cursor, span.start);
+    out += REDACTED_PASSWORD;
+    cursor = span.end;
+    keyRe.lastIndex = span.end;
+  }
+  out += input.slice(cursor);
+  return out;
+}
+
+function readPasswordValue(input: string, from: number, flag: boolean): { start: number; end: number } | undefined {
+  const afterKey = skipWs(input, from);
+  if (afterKey < input.length && (input[afterKey] === "=" || input[afterKey] === ":")) {
+    return readSecretValue(input, skipWs(input, afterKey + 1));
+  }
+  if (flag && afterKey > from) return readSecretValue(input, afterKey);
+  return undefined;
+}
+
+function readSecretValue(input: string, start: number): { start: number; end: number } | undefined {
+  if (start >= input.length) return undefined;
+  const quote = input[start];
+  if (quote === '"' || quote === "'") return readQuotedSecret(input, start, quote);
+  return readUnquotedSecret(input, start);
+}
+
+function readQuotedSecret(input: string, start: number, quote: string): { start: number; end: number } | undefined {
+  let index = start + 1;
+  while (index < input.length) {
+    if (input[index] === "\\") {
+      index += 2;
+      continue;
+    }
+    if (input[index] === quote) return { start: start + 1, end: index };
+    index += 1;
+  }
+  if (start + 1 >= input.length) return undefined;
+  return { start: start + 1, end: input.length };
+}
+
+function readUnquotedSecret(input: string, start: number): { start: number; end: number } | undefined {
+  let end = start;
+  while (end < input.length && !/\s/.test(input[end] ?? "")) end += 1;
+  let valueEnd = end;
+  while (valueEnd > start && /[,}\];]/.test(input[valueEnd - 1] ?? "")) valueEnd -= 1;
+  if (valueEnd === start) return undefined;
+  return { start, end: valueEnd };
+}
+
+function skipWs(input: string, index: number): number {
+  let cursor = index;
+  while (cursor < input.length && /\s/.test(input[cursor] ?? "")) cursor += 1;
+  return cursor;
 }
 
 function redactDomains(value: string, domains: string[]): string {

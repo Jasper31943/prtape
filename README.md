@@ -84,7 +84,7 @@ v0.1 drops a span only when it matches one of these fixed formats:
 | Hostnames | Names ending in `.internal` or `.local`. `localhost` stays. |
 | Email addresses | On by default in the comment, the timeline image, and JSON. `--no-redact-emails` leaves them visible. `--redact-emails` is accepted and still turns them on. |
 | Database URLs | `postgres`, `postgresql`, `mysql`, `mongodb`, `mongodb+srv`, `redis`, `rediss`, and `amqp` URLs that contain `user:password@host`. A URL with no password is left as-is. |
-| Password assignments | A value after a key that ends in `password`, `passwd`, or `pwd`, including `*_PASSWORD=`, `PGPASSWORD=`, JSON `"password": "..."`, and YAML `password: ...`. The key and its quotes stay. `PASSWORD_MIN_LENGTH` and the word password in a sentence, with no value, stay. |
+| Password assignments | A value after a key that ends in `password`, `passwd`, or `pwd`, including `*_PASSWORD=`, `PGPASSWORD=`, `export`, `--password` and `--db-password`, JSON, YAML, TOML, and single-quoted keys. A quoted value is removed through its closing quote, including spaces, symbols, and escaped quotes; the quotes stay. An unquoted value stops at whitespace. `PASSWORD_MIN_LENGTH` and the word password in a sentence, with no value, stay. |
 | Extra domains | `--redact-domain <domain>`, or comma-separated `PRTAPE_REDACT_DOMAINS`, also removes that domain, its subdomains, and an optional port. No company domain is built in. |
 
 `pr` posts the comment directly, so run `npx prtape-cli pr --dry-run` first to review what will be posted.

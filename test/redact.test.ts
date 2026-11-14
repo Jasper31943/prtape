@@ -127,9 +127,66 @@ describe("redact", () => {
       "password reset link",
       "passwordless",
       "PASSWORD_MIN_LENGTH=8",
+      "PASSWORD_MIN_LENGTH = 8",
     ];
     for (const input of untouched) {
       assert.equal(redact(input, { emails: false }), input, input);
+    }
+  });
+
+  it("redacts quoted, single-quoted, flag, and structured password values", () => {
+    const cases: Array<[string, string]> = [
+      ['password: "s3cr#t!xyz"', `password: "${REDACTED_PASSWORD}"`],
+      ['DB_PASSWORD="ab;cd;secret"', `DB_PASSWORD="${REDACTED_PASSWORD}"`],
+      ['password="hunter 2 secret"', `password="${REDACTED_PASSWORD}"`],
+      ["{'password': 'hunter2secret'}", `{'password': '${REDACTED_PASSWORD}'}`],
+      ["{'db_password': 'hunter2secret'}", `{'db_password': '${REDACTED_PASSWORD}'}`],
+      ['password = "a=b:c@d#e;f,g"', `password = "${REDACTED_PASSWORD}"`],
+      ["export DB_PASSWORD=hunter2secret", `export DB_PASSWORD=${REDACTED_PASSWORD}`],
+      ["--password=hunter2secret", `--password=${REDACTED_PASSWORD}`],
+      ["--password hunter2secret", `--password ${REDACTED_PASSWORD}`],
+      ["--db-password hunter2secret", `--db-password ${REDACTED_PASSWORD}`],
+      ['fn(password="hunter2secret")', `fn(password="${REDACTED_PASSWORD}")`],
+      ["PASSWORD: 'hunter2secret'", `PASSWORD: '${REDACTED_PASSWORD}'`],
+      ['password: "say \\"s3cret\\""', `password: "${REDACTED_PASSWORD}"`],
+      ['password: "s3cr#t!xyz\nstill-secret"', `password: "${REDACTED_PASSWORD}"`],
+      [
+        '- POSTGRES_PASSWORD="ab;cd;secret"',
+        `- POSTGRES_PASSWORD="${REDACTED_PASSWORD}"`,
+      ],
+    ];
+    for (const [input, expected] of cases) {
+      assert.equal(redact(input, { emails: false }), expected, input);
+    }
+  });
+
+  it("keeps no 3-character window of a symbol-rich password", () => {
+    const printable = Array.from({ length: 95 }, (_, index) => String.fromCharCode(32 + index)).join("");
+    const dense = printable.slice(1);
+    const wrapped = [
+      `password: "${escapeDq(printable)}"`,
+      `DB_PASSWORD="${escapeDq(printable)}"`,
+      `password="${escapeDq(printable)}"`,
+      `{'password': '${escapeSq(printable)}'}`,
+      `{'db_password': '${escapeSq(printable)}'}`,
+      `password = "${escapeDq(printable)}"`,
+      `export DB_PASSWORD="${escapeDq(printable)}"`,
+      `--password="${escapeDq(printable)}"`,
+      `--password "${escapeDq(printable)}"`,
+      `--db-password "${escapeDq(printable)}"`,
+      `fn(password="${escapeDq(printable)}")`,
+      `PASSWORD: '${escapeSq(printable)}'`,
+      `password:\n  "${escapeDq(printable)}"\nnext: kept`,
+      `export DB_PASSWORD=${dense}`,
+      `--password=${dense}`,
+      `--password ${dense}`,
+      `--db-password ${dense}`,
+      `DB_PASSWORD=${dense};`,
+    ];
+    for (const input of wrapped) {
+      const output = redact(input, { emails: false });
+      assertNoPasswordWindow(output, printable, input);
+      assert.equal(output.includes("next: kept") || !input.includes("next: kept"), true);
     }
   });
 
@@ -161,6 +218,21 @@ describe("redact", () => {
     }
   });
 });
+
+function escapeDq(value: string): string {
+  return value.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+}
+
+function escapeSq(value: string): string {
+  return value.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+}
+
+function assertNoPasswordWindow(output: string, secret: string, input: string): void {
+  for (let index = 0; index + 3 <= secret.length; index += 1) {
+    const window = secret.slice(index, index + 3);
+    assert.equal(output.includes(window), false, `${JSON.stringify(input.slice(0, 48))} leaked ${JSON.stringify(window)}`);
+  }
+}
 
 function escapeReg(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
