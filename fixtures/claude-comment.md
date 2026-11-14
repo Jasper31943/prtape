@@ -34,4 +34,4 @@ flowchart LR
 
 </details>
 
-_Redacted locally by PRtape 0.1.3. The raw session was not posted. This is the text timeline (ASCII + mermaid). GitHub strips inline SVG._
+_Redacted locally by PRtape 0.1.4. The raw session was not posted. This is the text timeline (ASCII + mermaid). GitHub strips inline SVG._

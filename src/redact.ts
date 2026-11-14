@@ -92,7 +92,8 @@ export function redact(value: string, options: RedactOptions = {}): string {
  * Keys end in password, passwd, or pwd, so PASSWORD_MIN_LENGTH stays.
  * A prefix may be DB_, PG, MYSQL_ROOT_, or a flag (`--password`, `--db-password`).
  * An optional quote after the key covers JSON and Python (`"password":`, `'db_password':`).
- * Quoted values run through the matching closer, including escapes, spaces, and symbols.
+ * Quoted values run through the matching closer, including backslash escapes,
+ * SQL doubled quotes (`''`, `""`), spaces, and symbols.
  * Unquoted values run to whitespace; a trailing `,` `}` `]` or `;` stays put.
  */
 function redactPasswordAssignments(input: string): string {
@@ -140,7 +141,14 @@ function readQuotedSecret(input: string, start: number, quote: string): { start:
       index += 2;
       continue;
     }
-    if (input[index] === quote) return { start: start + 1, end: index };
+    if (input[index] === quote) {
+      // SQL writes an embedded quote as '' or "". A lone quote closes the value.
+      if (input[index + 1] === quote) {
+        index += 2;
+        continue;
+      }
+      return { start: start + 1, end: index };
+    }
     index += 1;
   }
   if (start + 1 >= input.length) return undefined;

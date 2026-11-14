@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.4
+
+- Quoted password values treat a doubled quote as an escape (`''` and `""`) and redact through the real closing quote. Fixes [#3](https://github.com/Jasper31943/PRtape/issues/3).
+
 ## 0.1.3
 
 - Emails are redacted by default; `--no-redact-emails` leaves them visible, and `--redact-emails` still turns them on.

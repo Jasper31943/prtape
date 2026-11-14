@@ -182,6 +182,10 @@ describe("redact", () => {
       `--password ${dense}`,
       `--db-password ${dense}`,
       `DB_PASSWORD=${dense};`,
+      `password = '${sqlSq(printable)}'`,
+      `PASSWORD='${sqlSq(printable)}'`,
+      `{'password': '${sqlSq(printable)}'}`,
+      `password: "${sqlDq(printable)}"`,
     ];
     for (const input of wrapped) {
       const output = redact(input, { emails: false });
@@ -217,6 +221,18 @@ describe("redact", () => {
       assert.equal(surface.includes(EMAIL_CANARY), false);
     }
   });
+
+  it("redacts SQL doubled quotes inside a quoted password", () => {
+    const cases: Array<[string, string]> = [
+      ["password = 'it''s-secret'", `password = '${REDACTED_PASSWORD}'`],
+      ["PASSWORD='a''b''c'", `PASSWORD='${REDACTED_PASSWORD}'`],
+      ["{'password': 'x''y'}", `{'password': '${REDACTED_PASSWORD}'}`],
+      ['password: "say ""hi"" secret"', `password: "${REDACTED_PASSWORD}"`],
+    ];
+    for (const [input, expected] of cases) {
+      assert.equal(redact(input, { emails: false }), expected, input);
+    }
+  });
 });
 
 function escapeDq(value: string): string {
@@ -225,6 +241,14 @@ function escapeDq(value: string): string {
 
 function escapeSq(value: string): string {
   return value.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+}
+
+function sqlSq(value: string): string {
+  return value.replace(/\\/g, "\\\\").replace(/'/g, "''");
+}
+
+function sqlDq(value: string): string {
+  return value.replace(/\\/g, "\\\\").replace(/"/g, '""');
 }
 
 function assertNoPasswordWindow(output: string, secret: string, input: string): void {
