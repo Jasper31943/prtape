@@ -8,6 +8,8 @@ See what your AI agent actually did.
 npx prtape-cli pr
 ```
 
+![PRtape demo: run npx prtape-cli pr, the timeline comment appears on the PR](docs/demo.gif)
+
 After a global install (`npm i -g prtape-cli`) the command is `prtape`.
 
 - Reads the newest Claude Code session on your machine.
